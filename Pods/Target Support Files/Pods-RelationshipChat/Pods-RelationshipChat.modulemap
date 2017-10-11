@@ -1,0 +1,6 @@
+framework module Pods_RelationshipChat {
+  umbrella header "Pods-RelationshipChat-umbrella.h"
+
+  export *
+  module * { export * }
+}
