@@ -258,12 +258,14 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         addNotificationObserver()
         let backButton = UIBarButtonItem()
         backButton.title = "Profile"
+        
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         changedImageButton.backgroundColor = UIColor.clear
         newActivityButton.backgroundColor = UIColor.clear
+        
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -534,6 +536,11 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     }
                 })
             }
+        }
+        
+        NotificationCenter.default.addObserver(forName: CloudKitNotifications.MessageChannel, object: nil, queue: OperationQueue.main) { (_) in
+
+            self.tabBarController?.tabBar.items![1].badgeValue = String(UIApplication.shared.applicationIconBadgeNumber)
         }
     }
     

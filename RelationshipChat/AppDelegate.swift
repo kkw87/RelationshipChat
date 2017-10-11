@@ -26,13 +26,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         //Notification Setup
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
-            if error != nil {
-                print(error!.localizedDescription)
-            } else {
-                DispatchQueue.main.async {
-                    UIApplication.shared.registerForRemoteNotifications()
-                }
+            
+            guard error == nil else {
+                print(error!)
+                return
             }
+            
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+            
         }
         
         return true
@@ -40,8 +43,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) {
         let ckquery = CKQueryNotification(fromRemoteNotificationDictionary: userInfo)
-
-
+        
+        
         
         if let typeOfRecord = ckquery.recordFields?[Cloud.RecordKeys.RecordType] as? String {
             switch typeOfRecord {
@@ -59,15 +62,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 NotificationCenter.default.post(name: CloudKitNotifications.TypingIndicatorChannel, object: nil, userInfo: [CloudKitNotifications.TypingChannelKey : ckquery])
                 
             case Cloud.Entity.User:
-                    NotificationCenter.default.post(name: CloudKitNotifications.SecondaryUserUpdateChannel, object: nil, userInfo: [CloudKitNotifications.SecondaryUserUpdateKey : ckquery])
-  
+                NotificationCenter.default.post(name: CloudKitNotifications.SecondaryUserUpdateChannel, object: nil, userInfo: [CloudKitNotifications.SecondaryUserUpdateKey : ckquery])
+                
             case Cloud.Entity.Relationship:
                 
                 if ckquery.queryNotificationReason == .recordDeleted {
                     
                     NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)
                 }else {
-                
+                    
                     NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : ckquery])
                 }
                 
@@ -78,8 +81,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 if ckquery.queryNotificationReason == .recordDeleted {
                     NotificationCenter.default.post(name: CloudKitNotifications.ActivityDeletedChannel, object: nil, userInfo: [CloudKitNotifications.ActivityDeletedKey : ckquery])
                 } else {
-                
-                NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : ckquery])
+                    
+                    NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : ckquery])
                 }
                 
             default:

@@ -185,6 +185,8 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
             
             for newMessage in newMessages! {
                 self?.saveCloudMessageToCoreData(newMessage)
+                self?.tabBarController?.tabBar.items?[1].badgeValue = "\(UIApplication.shared.applicationIconBadgeNumber)"
+                UIApplication.shared.applicationIconBadgeNumber -= 1
             }
         }
         
@@ -663,14 +665,7 @@ extension ChatViewController {
     
     
     func addMessageFromNotification(_ messageID : CKRecordID) {
-        
-        
-        //        Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: newMessage.recordID!, completionHandler: { (_, error) in
-        //            if error != nil {
-        //                _ = Cloud.errorHandling(error!, sendingViewController: self)
-        //            }
-        //        })
-        
+
         Cloud.CloudDatabase.PublicDatabase.fetch(withRecordID: messageID) { (messageRecord, error) in
             
             guard error == nil else {

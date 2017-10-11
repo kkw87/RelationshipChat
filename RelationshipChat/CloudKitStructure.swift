@@ -151,6 +151,7 @@ struct Cloud {
     static func saveMessageSubscription(_ messageRelationship : CKRecord, currentUser user : CKRecord) {
         
         let predicate = NSPredicate(format: "relationship = %@", messageRelationship.recordID)
+        
         let messageSubscription = CKQuerySubscription(recordType: Cloud.Entity.Message, predicate: predicate, subscriptionID: Cloud.SubscriptionNames.MessageSubscription, options: CKQuerySubscriptionOptions.firesOnRecordCreation)
         let rinfo = CKNotificationInfo()
         rinfo.alertBody = Cloud.Messages.MessageRecieved
@@ -186,27 +187,15 @@ struct Cloud {
         saveSubscriptionOps.subscriptionsToSave = [messageSubscription, typingSubscription, activitySubscription]
         
         saveSubscriptionOps.modifySubscriptionsCompletionBlock = { (savedRecords, deletedRecordsID, error) in
-            if error != nil {
-                _ = _ = Cloud.errorHandling(error!, sendingViewController: nil)
+            guard error == nil else {
+                _ = Cloud.errorHandling(error!, sendingViewController: nil)
+                print("error saving message subscription")
+                return
             }
         }
         Cloud.CloudDatabase.PublicDatabase.add(saveSubscriptionOps)
     }
     
-    static func deleteRecord(_ IDofRecordToDelete : CKRecordID, presentingVC : UIViewController?, completionBlock : (() -> Void)?) {
-        
-        UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: IDofRecordToDelete) { (deletedRecord, error) in
-            UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            if error != nil {
-                _ = Cloud.errorHandling(error!, sendingViewController: presentingVC)
-            } else {
-                if completionBlock != nil {
-                    completionBlock!()
-                }
-            }
-        }
-    }
     
     static func deleteTypingIndicatorsFrom(_ fromRelationship : CKRecord) {
         let predicate = NSPredicate(format: "relationship = %@", fromRelationship.recordID)
@@ -223,10 +212,25 @@ struct Cloud {
                 return
             }
             
-            for typingIndicator in typingIndicators! {
-                Cloud.deleteRecord(typingIndicator.recordID, presentingVC: nil, completionBlock: nil)
+            let deleteIndicatorDeleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: typingIndicators?.map {
+                $0.recordID
+                })
+            
+            deleteIndicatorDeleteOperation.modifyRecordsCompletionBlock = { (_, _, error) in
+                
+                guard error == nil else {
+                    _ = Cloud.errorHandling(error!, sendingViewController: nil)
+                    print("error deleting typinc indicators")
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                }
             }
             
+            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+            Cloud.CloudDatabase.PublicDatabase.add(deleteIndicatorDeleteOperation)
         }
     }
     
@@ -259,13 +263,17 @@ struct Cloud {
     static func pullRelationshipRequest(fromSender : CKRecordID, relationshipRecordID : CKRecordID, relationshipRequestID : CKRecordID, presentingVC : UIViewController?, completionHandler : @escaping (CKRecord, CKRecord) -> ()) -> Void {
         let fetchOperation = CKFetchRecordsOperation(recordIDs: [fromSender, relationshipRecordID])
         fetchOperation.fetchRecordsCompletionBlock = { (fetchedRecords, error) in
-            if error != nil {
-                _ = Cloud.errorHandling(error!, sendingViewController: presentingVC)
-            } else {
-                if fetchedRecords != nil {
-                    completionHandler(fetchedRecords![fromSender]!, fetchedRecords![relationshipRecordID]!)
-                }
+            
+            guard error == nil else {
+                _ = Cloud.errorHandling(error!, sendingViewController: nil)
+                print(error!)
+                return
             }
+            
+            if fetchedRecords != nil {
+                completionHandler(fetchedRecords![fromSender]!, fetchedRecords![relationshipRecordID]!)
+            }
+            
         }
         Cloud.CloudDatabase.PublicDatabase.add(fetchOperation)
         

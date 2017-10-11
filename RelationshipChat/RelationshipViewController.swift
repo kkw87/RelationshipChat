@@ -176,7 +176,7 @@ class RelationshipViewController: UIViewController {
         super.viewWillAppear(animated)
         relationshipWithButton.backgroundColor = UIColor.clear
         newRelationshipButton.backgroundColor = UIColor.clear
-        
+        tabBarController?.tabBar.items![1].tag = UIApplication.shared.applicationIconBadgeNumber
     }
     
     //MARK : - Outlet Methods
@@ -399,6 +399,11 @@ class RelationshipViewController: UIViewController {
                 })
                 
             }
+        }
+        
+        NotificationCenter.default.addObserver(forName: CloudKitNotifications.MessageChannel, object: nil, queue: OperationQueue.main) { (_) in
+
+            self.tabBarController?.tabBar.items![1].tag = UIApplication.shared.applicationIconBadgeNumber
         }
         
     }
