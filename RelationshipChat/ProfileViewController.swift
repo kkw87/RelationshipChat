@@ -353,33 +353,35 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = true
             }
-            Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil) {
+            Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil) { [weak self] (relationshipResponses, error) in
                 DispatchQueue.main.async {
                     UIApplication.shared.isNetworkActivityIndicatorVisible = false
                 }
-                guard $1 == nil else {
-                    _ = Cloud.errorHandling($1!, sendingViewController: self)
+                guard error == nil else {
+                    _ = Cloud.errorHandling(error!, sendingViewController: self)
                     return
                 }
                 
                 
-                guard let relationResponseStatus = ($0?.first)?[Cloud.RelationshipRequestResponseAttribute.StatusUpdate] as? String else {
+                guard let relationResponseStatus = relationshipResponses?.first?[Cloud.RelationshipRequestResponseAttribute.StatusUpdate] as? String else {
                     print("no relationship response status")
                     return
                 }
                 
                 switch relationResponseStatus {
                 case Cloud.Status.Accepted :
-                    self.acceptedRelationshipResponseSetup()
+                    self?.acceptedRelationshipResponseSetup()
                 case Cloud.Status.Declined :
-                    self.declinedRelationshipResponseSetup()
+                    self?.declinedRelationshipResponseSetup()
                 default :
                     break
                 }
                 
-                for record in $0! {
-                    Cloud.deleteRecord(record.recordID, presentingVC: self, completionBlock: nil)
-                }
+                let deleteResponsesOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: relationshipResponses?.map {
+                        $0.recordID
+                    })
+                
+                Cloud.CloudDatabase.PublicDatabase.add(deleteResponsesOperation)
                 
             }
         }
@@ -488,16 +490,24 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 if let relationshipRequestResponse = notification.userInfo?[CloudKitNotifications.RelationshipRequestResponseKey] as? CKQueryNotification {
                     
                     if let updateStatus = relationshipRequestResponse.recordFields?[Cloud.RelationshipRequestResponseAttribute.StatusUpdate] as? String {
-                        Cloud.deleteRecord(relationshipRequestResponse.recordID!, presentingVC: self, completionBlock: nil)
                         
-                        switch updateStatus {
-                        case Cloud.Status.Accepted :
-                            self?.acceptedRelationshipResponseSetup()
-                        case Cloud.Status.Declined :
-                            self?.declinedRelationshipResponseSetup()
-                        default :
-                            break
-                        }
+                        Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: relationshipRequestResponse.recordID!, completionHandler: { (_, error) in
+                            guard error == nil else {
+                                _ = Cloud.errorHandling(error!, sendingViewController: self)
+                                return
+                            }
+                            
+                            switch updateStatus {
+                            case Cloud.Status.Accepted :
+                                self?.acceptedRelationshipResponseSetup()
+                            case Cloud.Status.Declined :
+                                self?.declinedRelationshipResponseSetup()
+                            default :
+                                break
+                            }
+                            
+                        })
+                                                
                     }
                     
                 }
