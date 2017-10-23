@@ -45,19 +45,26 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         
         static let DefaultNotInARelationshipViewText = "You are not in a relationship"
         static let PendingNotInARelationshipViewText = "You have a pending relationship request!"
+        
+        static let PageControlYOffSet : CGFloat = 50
     }
     
+    //MARK: - Storyboard Constants
     struct Storyboard {
-        static let newProfileSegue = "Make New Profile Segue"
-        static let editProfileSegue = "Edit Profile Segue"
+        static let NewProfileSegue = "Make New Profile Segue"
+        static let EditProfileSegue = "Edit Profile Segue"
         static let RelationshipConfirmationSegueID = "Relationship Confirmation Segue"
-        static let NewActivitySegue = "New Activity"
-        static let EmbeddedUserLocationsVC = "ActivityOverviewEmbedSegue"
+        static let PageViewEmbedSegueID = "ActivityOverviewEmbedSegue"
+        
+        static let UpcomingActivityVCID = "Upcoming VC"
+        static let PastActivityVCID = "Previous VC"
+        
     }
     
     //MARK: - Outlets
     
     @IBOutlet weak var viewDivider: UIView!
+    
     @IBOutlet weak var notInARelationshipView: UIView! {
         didSet {
             notInARelationshipView.roundEdges()
@@ -105,26 +112,97 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             relationshipType.text = " "
         }
     }
-    @IBOutlet weak var newActivityButton: UIButton! {
-        didSet {
-            newActivityButton.isEnabled = false
-            newActivityButton.roundEdges()
-        }
-    }
+    
     @IBOutlet weak var newProfileButton: UIButton! {
         didSet {
             newProfileButton.roundEdges()
+            newProfileButton.backgroundColor = UIColor.flatPurple()
         }
     }
     
-    // MARK: - Instance Variables
+    // MARK: - PageView Controller Storyboard
     
-    fileprivate var embeddedVC : UpcomingActivitiesTableViewController?
+    lazy var activityViewControllers : [UIViewController] = {
+        let activityVCs = [
+            UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: Storyboard.UpcomingActivityVCID),
+            UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: Storyboard.PastActivityVCID)
+        ]
+        
+        self.upcomingActivityVC = (activityVCs.first as? UINavigationController)?.contentViewController as? UpcomingActivitiesTableViewController
+        self.pastActivityVC = (activityVCs.last as? UINavigationController)?.contentViewController as? ActivityTableViewController
+        
+        return activityVCs
+    }()
     
+    // MARK: - PageViewController VCs
+    fileprivate var upcomingActivityVC : UpcomingActivitiesTableViewController? {
+        didSet {
+            upcomingActivityVC?.dataSource = self
+        }
+    }
+    fileprivate var pastActivityVC : ActivityTableViewController? {
+        didSet {
+            pastActivityVC?.dataSource = self
+        }
+    }
+    
+    // MARK: - Page Control Properties
+    private lazy var pageControl : UIPageControl = {
+        
+        let pageCtrl = UIPageControl(frame: CGRect(x: 0, y: view.bounds.maxY - Constants.PageControlYOffSet * 2, width: view.bounds.width, height: Constants.PageControlYOffSet))
+        
+        pageCtrl.numberOfPages = activityViewControllers.count
+        pageCtrl.currentPage = 0
+        pageCtrl.tintColor = UIColor.flatPurple()
+        pageCtrl.pageIndicatorTintColor = UIColor.gray
+        pageCtrl.currentPageIndicatorTintColor = UIColor.flatPurple()
+        pageCtrl.isUserInteractionEnabled = false
+        return pageCtrl
+    }()
+    
+    fileprivate var embeddedVC : UIPageViewController? {
+        didSet {
+            if let initialVC = activityViewControllers.first {
+                embeddedVC?.setViewControllers([initialVC], direction: .forward, animated: true, completion: nil)
+            }
+            view.addSubview(pageControl)
+            print(pageControl)
+        }
+    }
+    
+    //MARK: - Instance Properties
     fileprivate lazy var loadingView : ActivityView = {
         let view = ActivityView(withMessage: "")
         return view
     }()
+    
+    fileprivate var relationshipActivities = [RelationshipActivity]() {
+        didSet {
+            
+            //Reset the arrays so there is a double of everything 
+            upcomingActivities = []
+            pastActivities = []
+            //This is readding everything to the arrays, clear upcoming and past activities
+            for activty in relationshipActivities {
+                if activty.daysUntilActivity < 0 {
+                    pastActivities.append(activty)
+                } else {
+                    upcomingActivities.append(activty)
+                }
+            }
+        }
+    }
+    
+    var upcomingActivities = [RelationshipActivity]() {
+        didSet {
+            upcomingActivityVC?.activities = upcomingActivities
+        }
+    }
+    var pastActivities = [RelationshipActivity]() {
+        didSet {
+            pastActivityVC?.activities = pastActivities
+        }
+    }
     
     fileprivate var relationshipStatus = Constants.DefaultRelationshipText {
         didSet {
@@ -210,46 +288,56 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
+    
     fileprivate var relationshipRecord : CKRecord? {
         didSet {
             if relationshipRecord != nil {
                 switch relationshipRecord![Cloud.RelationshipAttribute.Status] as! String {
+                    
                 case Cloud.RelationshipStatus.Pending :
+                    pageControl.isHidden = true 
+                    embedViewContainer.isHidden = true
                     notInARelationshipView.isHidden = false
                     tabBarController?.chatBarItem?.isEnabled = false
-                    newActivityButton.isEnabled = false
                     notInARelationshipLabel.text = Constants.PendingNotInARelationshipViewText
                     secondaryUser = nil
                     daysLabelTitle.text = "Your relationship is"
                     daysLabel.text = "Pending"
                 default :
+                    pageControl.isHidden = false
+                    embedViewContainer.isHidden = false
                     tabBarController?.chatBarItem?.isEnabled = true
-                    newActivityButton.isEnabled = true
                     notInARelationshipView.isHidden = true
                     relationshipStatus = relationshipRecord![Cloud.RelationshipAttribute.Status] as! String
                     relationshipStartDate = relationshipRecord![Cloud.RelationshipAttribute.StartDate] as? Date
-                    embeddedVC?.relationshipRecord = relationshipRecord
+                    
                     if let startDate = relationshipRecord![Cloud.RelationshipAttribute.StartDate] as? Date {
                         relationshipStartDate = startDate
+                    }
+                    
+                    if let relationshipActivities = relationshipRecord![Cloud.RelationshipAttribute.Activities] as? [CKReference] {
+                        loadActivitiesFrom(newRelationshipActivityReferences: relationshipActivities)
                     }
                     
                 }
                 
             } else {
+                pageControl.isHidden = true
+                embedViewContainer.isHidden = true
                 daysLabelTitle.text = "You Are"
                 relationshipStatus = Constants.DefaultRelationshipText
                 notInARelationshipLabel.text = Constants.DefaultNotInARelationshipViewText
                 notInARelationshipView.isHidden = false
                 tabBarController?.chatBarItem?.isEnabled = false
-                newActivityButton.isEnabled = false
                 secondaryUser = nil
             }
         }
     }
-    //Relationship request variables
+    // MARK: - Relationship request variables
     fileprivate var sendersRecord : CKRecord?
     fileprivate var requestedRelationship : CKRecord?
     fileprivate var relationshipRequestID : CKRecordID?
+    
     
     
     //MARK: - VC Lifecycle
@@ -258,20 +346,15 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         addNotificationObserver()
         let backButton = UIBarButtonItem()
         backButton.title = "Profile"
-        
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         changedImageButton.backgroundColor = UIColor.clear
-        newActivityButton.backgroundColor = UIColor.clear
-        
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
-        
         if FileManager.default.ubiquityIdentityToken == nil {
             
             let alertController = UIAlertController(title: "Not signed into iCloud", message: "Please sign into your iCloud account", preferredStyle: .alert)
@@ -292,7 +375,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         
     }
     
-    //MARK: - Class Functions
+    //MARK: - Image Picking
     
     
     @IBAction func changeImage(_ sender: Any) {
@@ -305,6 +388,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
+    //MARK: - Relationship request checking functions
     fileprivate func checkRelationshipRequests() {
         
         if relationshipRecord == nil && usersRecord != nil {
@@ -326,7 +410,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 guard let request = fetchedRequests?.first, let relationship = request[Cloud.RelationshipRequestAttribute.Relationship] as? CKReference, let sendingUsersReference = request[Cloud.RelationshipRequestAttribute.Sender] as? CKReference else {
                     return
                 }
-            
+                
                 Cloud.pullRelationshipRequest(fromSender: sendingUsersReference.recordID, relationshipRecordID: relationship.recordID, relationshipRequestID: request.recordID, presentingVC: self, completionHandler: { [weak weakSelf = self] (sendingUsersRecord, relationshipRequestedRecord) in
                     DispatchQueue.main.async {
                         weakSelf?.sendersRecord = sendingUsersRecord
@@ -336,9 +420,6 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     }
                     
                 })
-                
-                
-                
                 
             })
             
@@ -378,7 +459,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 }
                 
                 let deleteResponsesOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: relationshipResponses?.map {
-                        $0.recordID
+                    $0.recordID
                     })
                 
                 Cloud.CloudDatabase.PublicDatabase.add(deleteResponsesOperation)
@@ -387,13 +468,13 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
-    
+    // MARK: - Notification Observers
     fileprivate func addNotificationObserver() {
         
         //Add notification observer for messages, to update chat tab bar badge
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.RelationshipUpdateChannel, object: nil, queue: nil) { [weak self] (notification) in
-
+            
             if let updatedRelationship = notification.userInfo?[CloudKitNotifications.RelationshipUpdateKey] as? CKQueryNotification {
                 
                 DispatchQueue.main.async {
@@ -485,7 +566,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     }
                 })
             }
-       
+            
             NotificationCenter.default.addObserver(forName: CloudKitNotifications.RelationshipRequestResponseChannel, object: nil, queue: nil) { [weak self] (notification) in
                 if let relationshipRequestResponse = notification.userInfo?[CloudKitNotifications.RelationshipRequestResponseKey] as? CKQueryNotification {
                     
@@ -507,7 +588,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                             }
                             
                         })
-                                                
+                        
                     }
                     
                 }
@@ -520,41 +601,31 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             }
         }
         
-        
-        NotificationCenter.default.addObserver(forName: CloudKitNotifications.ActivityDeletedChannel, object: nil, queue: OperationQueue.main) { [weak self] (notification) in
-            
-            let deletedRecordID : CKRecordID
-            
-            if let deletedRecord = notification.userInfo?[CloudKitNotifications.ActivityDeletedKey] as? CKQueryNotification {
-                deletedRecordID = deletedRecord.recordID!
-            } else {
-                deletedRecordID = notification.userInfo![CloudKitNotifications.ActivityDeletedKey] as! CKRecordID
-            }
-            
-            
-            if let relationshipActivities = self?.relationshipRecord?[Cloud.RelationshipAttribute.Activities] as? [CKReference] {
-                self?.relationshipRecord![Cloud.RelationshipAttribute.Activities] = (relationshipActivities.filter { $0.recordID != deletedRecordID }) as CKRecordValue?
+        NotificationCenter.default.addObserver(forName: CloudKitNotifications.ActivityUpdateChannel, object: nil, queue: OperationQueue.main) { (notification) in
+            if let newActivity = notification.userInfo?[CloudKitNotifications.ActivityUpdateKey] as? CKRecord {
                 DispatchQueue.main.async {
-                    UIApplication.shared.isNetworkActivityIndicatorVisible = true
+                    self.convertRecordsToActivities(records: [newActivity])
                 }
-                Cloud.CloudDatabase.PublicDatabase.save((self?.relationshipRecord!)!, completionHandler: { (savedRelationshipRecord, error) in
-                    DispatchQueue.main.async {
-                        UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                    }
-                    if error != nil {
-                        _ = Cloud.errorHandling(error!, sendingViewController: self)
-                    }
-                })
             }
         }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.MessageChannel, object: nil, queue: OperationQueue.main) { (_) in
-
-            self.tabBarController?.tabBar.items![1].badgeValue = String(UIApplication.shared.applicationIconBadgeNumber)
+            
+            //CRASH, this may crash 
+            guard let currentBadgeValue = Int((self.tabBarController?.chatBarItem?.badgeValue)!) else {
+                return
+            }
+            
+            switch currentBadgeValue {
+            case 0 :
+                self.tabBarController?.chatBarItem?.badgeValue = "\(1)"
+            default :
+                self.tabBarController?.chatBarItem?.badgeValue = "\(currentBadgeValue + 1)"
+            }
         }
     }
     
-    
+    // MARK: - User Record functions
     fileprivate func pullUsersRecord() {
         DispatchQueue.main.async {
             
@@ -599,7 +670,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 guard let userRecord = records?.first else {
                     DispatchQueue.main.async {
                         self?.loadingView.removeFromSuperview()
-                        self?.performSegue(withIdentifier: Storyboard.newProfileSegue, sender: self)
+                        self?.performSegue(withIdentifier: Storyboard.NewProfileSegue, sender: self)
                     }
                     return
                 }
@@ -698,6 +769,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         })
     }
     
+    // MARK: - Relationship response functions
     fileprivate func acceptedRelationshipResponseSetup() {
         
         if relationshipRecord != nil && usersRecord != nil {
@@ -719,7 +791,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     print("error fetching updated relationship")
                     return
                 }
-                
+
                 self?.relationshipRecord = newRelationship
                 
             })
@@ -751,9 +823,8 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         Cloud.CloudDatabase.PublicDatabase.add(declinedRelationshipRecordsOp)
         
     }
+    
     //MARK: - Navigation
-    
-    
     @IBAction func unwindFromNewProfile(segue : UIStoryboardSegue) {
         if let evc = segue.source as? EditProfileViewController {
             DispatchQueue.main.async {
@@ -762,20 +833,12 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
-    
-    
-    @IBAction func unwindFromNewActivity(segue : UIStoryboardSegue) {
-        
-    }
-    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if let identifier = segue.identifier {
             switch identifier {
-            case Storyboard.editProfileSegue :
+            case Storyboard.EditProfileSegue :
                 if let dvc = segue.destination as? EditProfileViewController {
                     dvc.mainUserRecord = usersRecord
-                } else {
-                    break
                 }
             case Storyboard.RelationshipConfirmationSegueID :
                 if let rvc = segue.destination as? RelationshipConfirmationViewController {
@@ -784,22 +847,109 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     rvc.usersRecord = usersRecord
                     rvc.relationshipRequestID = relationshipRequestID
                 }
-            case Storyboard.NewActivitySegue :
-                if let nvc = segue.destination as? NewActivityViewController {
-                    nvc.relationship = relationshipRecord
-                }
-            case Storyboard.EmbeddedUserLocationsVC :
-                if let uctvc = (segue.destination as? UINavigationController)?.contentViewController as? UpcomingActivitiesTableViewController {
-                    embeddedVC = uctvc
+            case Storyboard.PageViewEmbedSegueID :
+                if let evc = segue.destination as? UIPageViewController {
+                    evc.delegate = self
+                    evc.dataSource = self
+                    embeddedVC = evc
                 }
             default : break
             }
         }
     }
     
+    // MARK: - Activity Functions
+    fileprivate func loadActivitiesFrom(newRelationshipActivityReferences : [CKReference]) {
+        
+        let currentActivityRecordIDs = relationshipActivities.map {
+            $0.activityRecord.recordID
+        }
+        
+        //Filter out new activities from current activities so there is no need to double fetch
+        let newActivities = newRelationshipActivityReferences.filter { !currentActivityRecordIDs.contains($0.recordID)}.map {
+            $0.recordID
+        }
+        
+        let fetchAllActivitiesOperation = CKFetchRecordsOperation(recordIDs: newActivities)
+        
+        fetchAllActivitiesOperation.fetchRecordsCompletionBlock = {[weak self] (newActivityRecords, error) in
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+            }
+            
+            guard error == nil else {
+                _ = Cloud.errorHandling(error!, sendingViewController: self )
+                return
+            }
+            let activityRecords = Array(newActivityRecords!.values)
+            self?.relationshipActivities = []
+            self?.relationshipActivities = (self?.convertRecordsToActivities(records: activityRecords))!
+        }
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        }
+        Cloud.CloudDatabase.PublicDatabase.add(fetchAllActivitiesOperation)
+    }
+    
+    fileprivate func convertRecordsToActivities(records : [CKRecord]) -> [RelationshipActivity] {
+        
+        let calendar = NSCalendar.current
+        let currentDate = calendar.startOfDay(for: Date())
+        let currentYear = calendar.component(.year, from: currentDate)
+        
+        var activityDateComponents = DateComponents()
+        
+        var activitiesArray = [RelationshipActivity]()
+        
+        func addSystemActivity(recordToBeConverted : CKRecord) {
+            activityDateComponents.year = currentYear
+            
+            var systemMadeActivityDate = calendar.date(from: activityDateComponents)!
+            
+            let dateComparison = calendar.compare(systemMadeActivityDate, to: currentDate, toGranularity: .day)
+            
+            if dateComparison == .orderedAscending {
+                var dateComponents = calendar.dateComponents([.year, .month, .day], from: systemMadeActivityDate)
+                dateComponents.year = currentYear + 1
+                systemMadeActivityDate = calendar.date(from: dateComponents)!
+            }
+            
+            let dayDifference = calendar.dateComponents([.day], from: currentDate, to: systemMadeActivityDate).day!
+            
+            let newActivity = RelationshipActivity(daysUntilActivity: dayDifference, activityRecord: recordToBeConverted, activityDate: systemMadeActivityDate)
+            
+            activitiesArray.append(newActivity)
+            
+        }
+        
+        func addActivity(recordToBeConverted : CKRecord) {
+            let activityDate = calendar.date(from: activityDateComponents)!
+            
+            let days = calendar.dateComponents([.day], from: currentDate, to: activityDate).day!
+            
+            let newActivity = RelationshipActivity(daysUntilActivity: days, activityRecord: recordToBeConverted, activityDate: activityDate)
+            
+            activitiesArray.append(newActivity)
+        }
+        
+        for record in records {
+            
+            activityDateComponents = calendar.dateComponents([.year, .month, .day], from: record[Cloud.RelationshipActivityAttribute.CreationDate] as! Date)
+            
+            if record[Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+                addSystemActivity(recordToBeConverted: record)
+            } else {
+                addActivity(recordToBeConverted: record)
+            }
+        }
+        
+        return activitiesArray
+    }
+    
 }
 
-//MARK: - Image Controller delegate
+// MARK: - Image Controller delegate
 
 @available(iOS 10.0, *)
 extension ProfileViewController : UIImagePickerControllerDelegate {
@@ -828,5 +978,132 @@ extension ProfileViewController : UIImagePickerControllerDelegate {
         
         userImage = imageInfo.image
         self.dismiss(animated: true, completion: nil)
+    }
+}
+
+// MARK: - ProfileViewController DataSource
+extension ProfileViewController : UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+    
+    func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool, previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
+        
+        let pageContentVC = pageViewController.viewControllers![0]
+        self.pageControl.currentPage = activityViewControllers.index(of: pageContentVC)!
+    }
+    
+    func pageViewController(_ pageViewController: UIPageViewController, viewControllerBefore viewController: UIViewController) -> UIViewController? {
+        
+        guard let currentIndex = activityViewControllers.index(of: viewController) else {
+            return nil
+        }
+        
+        if currentIndex <= 0 {
+            return activityViewControllers.last
+        } else {
+            return activityViewControllers[currentIndex - 1]
+        }
+        
+    }
+    
+    func pageViewController(_ pageViewController: UIPageViewController, viewControllerAfter viewController: UIViewController) -> UIViewController? {
+        
+        guard let currentIndex = activityViewControllers.index(of: viewController) else {
+            return nil
+        }
+        
+        if currentIndex >= activityViewControllers.count - 1 {
+            return activityViewControllers.first
+        } else {
+            return activityViewControllers[currentIndex + 1]
+        }
+    }
+    
+}
+
+extension ProfileViewController : ActivityTableViewControllerDataSource {
+    
+    func addActivity(newActivityToSave: CKRecord, completionHandler : ((Bool?, Error?)->Void)?) {
+        
+        newActivityToSave[Cloud.RelationshipActivityAttribute.Relationship] = CKReference(record: relationshipRecord!, action: .deleteSelf) as CKRecordValue?
+        
+        var relationshipActivityArray = relationshipRecord![Cloud.RelationshipAttribute.Activities] as! [CKReference]
+        let activityReference = CKReference(record: newActivityToSave, action: .none)
+        relationshipActivityArray.append(activityReference)
+        
+        
+        relationshipRecord![Cloud.RelationshipAttribute.Activities] = relationshipActivityArray as CKRecordValue?
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+
+        }
+        //save new activity and relationship
+        
+        let saveActivityOp = CKModifyRecordsOperation(recordsToSave: [newActivityToSave, relationshipRecord!], recordIDsToDelete: nil)
+        
+        saveActivityOp.modifyRecordsCompletionBlock = { [weak self] in
+            
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+
+            }
+            guard $2 == nil else {
+                _ = Cloud.errorHandling($2!, sendingViewController: nil)
+                completionHandler?(false, $2)
+                return
+            }
+            
+            let savedActivity = $0?.filter { ($0[Cloud.RecordKeys.RecordType] as? String) == Cloud.Entity.RelationshipActivity }.first
+            completionHandler?(true, nil)
+
+            self?.relationshipActivities.append(self!.convertRecordsToActivities(records: [savedActivity!]).first!)
+        }
+        
+        Cloud.CloudDatabase.PublicDatabase.add(saveActivityOp)
+    }
+    
+    func inAValidRelationshipCheck() -> Bool {
+        guard relationshipRecord != nil else {
+            return false
+        }
+        
+        switch relationshipRecord![Cloud.RelationshipAttribute.Status] as! String {
+        case Cloud.RelationshipStatus.Pending, Cloud.RelationshipStatus.Single:
+            return false
+        default:
+            return true
+        }
+    }
+    
+    func deleteActivity(activityRecordID: CKRecordID) {
+        
+        UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        //Set original activities as a backup incase save fails
+        let originalActivities = relationshipRecord![Cloud.RelationshipAttribute.Activities] as CKRecordValue?
+        
+        //Update relationship record to account for swiped activity that needs to be deleted
+        relationshipRecord![Cloud.RelationshipAttribute.Activities] = (relationshipRecord![Cloud.RelationshipAttribute.Activities] as! [CKReference]).filter {
+            $0.recordID.recordName != activityRecordID.recordName
+            } as CKRecordValue?
+        
+        let modifyRecordsOp = CKModifyRecordsOperation(recordsToSave: [relationshipRecord!], recordIDsToDelete: [activityRecordID])
+        
+        modifyRecordsOp.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecordIDs, error) in
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+            }
+            guard error == nil else {
+                self?.relationshipRecord![Cloud.RelationshipAttribute.Activities] = originalActivities
+                print(error!)
+                return
+            }
+            self?.relationshipActivities = (self?.relationshipActivities.filter {
+                $0.activityRecord.recordID != deletedRecordIDs?.first
+                })!
+        }
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        }
+        Cloud.CloudDatabase.PublicDatabase.add(modifyRecordsOp)
     }
 }

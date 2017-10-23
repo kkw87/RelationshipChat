@@ -13,8 +13,7 @@ import MapKit
 @available(iOS 10.0, *)
 class ActivityOverviewViewController: UITableViewController {
     
-    //MARK : - Constants
-    
+    //MARK : - Constants   
     struct Constants {
         static let AnnotationIdentifier = "default a ID"
         static let DeletingMessage = "Deleting activity..."
@@ -38,7 +37,11 @@ class ActivityOverviewViewController: UITableViewController {
     
     //MARK : - Outlets
     
-    @IBOutlet weak var datePicker: UIDatePicker!
+    @IBOutlet weak var datePicker: UIDatePicker! {
+        didSet {
+            datePicker.minimumDate = Date()
+        }
+    }
     
     @IBOutlet weak var descriptionTextBox: UITextView!
     
@@ -62,13 +65,7 @@ class ActivityOverviewViewController: UITableViewController {
     
     @IBOutlet weak var addressLabel: UILabel!
     
-    @IBOutlet weak var findNewLocationButton: UIButton! {
-        didSet {
-            findNewLocationButton.roundEdges()
-            findNewLocationButton.isEnabled = false
-            addressLabel.text = Constants.AddressLabelDefaultText
-        }
-    }
+
    
     //MARK : - Model
     var activity : CKRecord? {
@@ -108,7 +105,7 @@ class ActivityOverviewViewController: UITableViewController {
     fileprivate var activityLocation : CLLocation? {
         didSet {
             if activityLocation != nil {
-                findNewLocationButton?.isEnabled = true
+                newLocationButton?.isEnabled = true
                 setupMapView()
                 let addressStringTitle = activity![Cloud.RelationshipActivityAttribute.LocationStringName] as! String
                 let addressStringBody = activity![Cloud.RelationshipActivityAttribute.LocationStringAddress] as! String
@@ -116,7 +113,7 @@ class ActivityOverviewViewController: UITableViewController {
                 addressLabel?.text = "\(addressStringTitle), \(addressStringBody)"
                 
             } else {
-                findNewLocationButton?.isEnabled = false
+                newLocationButton?.isEnabled = false
             }
         }
     }
@@ -133,14 +130,17 @@ class ActivityOverviewViewController: UITableViewController {
     //MARK: - Class methods
     
     fileprivate func setupUI() {
+        
         if activity != nil {
-            
+
             if activity![Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+           
                 datePicker?.datePickerMode = .date
                 datePicker?.isEnabled = false
                 descriptionTextBox?.isEditable = false
                 saveButton?.isEnabled = false
-                
+                newLocationButton?.isHidden = true
+                addressLabel?.text = activity![Cloud.RelationshipActivityAttribute.Message] as! String
             }
             
             activityDate = activity![Cloud.RelationshipActivityAttribute.CreationDate] as! Date
@@ -174,8 +174,11 @@ class ActivityOverviewViewController: UITableViewController {
         mapItem.openInMaps(launchOptions: launchOptions)
     }
     
-    //MARK : - Outlet methods
+    //MARK: - Outlet methods
     
+    @IBAction func cancelAction(_ sender: Any) {
+        presentingViewController?.dismiss(animated: true, completion: nil)
+    }
     @IBAction func saveActivity(_ sender: Any) {
         
         guard !descriptionTextBox.text!.isEmpty else {
@@ -229,6 +232,7 @@ class ActivityOverviewViewController: UITableViewController {
             }
         }
     }
+
 }
 
 //MARK: - MapView Delegates

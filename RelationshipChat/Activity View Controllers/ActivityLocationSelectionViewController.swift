@@ -73,10 +73,13 @@ class ActivityLocationSelectionViewController: UIViewController {
         
         resultSearchController = UISearchController(searchResultsController: locationSearchTable)
         resultSearchController?.searchResultsUpdater = locationSearchTable
-
-//        let searchBarFromController = resultSearchController!.searchBar
-//        searchBarFromController.sizeToFit()
-//        searchBarFromController.placeholder = "Search for locations..."
+        resultSearchController?.searchBar.tintColor = UIColor.white
+        
+        let textField = resultSearchController?.searchBar.value(forKey: "searchField") as! UITextField
+        
+        textField.borderStyle = .none
+        textField.backgroundColor = UIColor.white        
+        
         navigationItem.searchController = resultSearchController
         
         resultSearchController?.hidesNavigationBarDuringPresentation = false

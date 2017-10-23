@@ -16,12 +16,15 @@ class ActivityTableViewCell: UITableViewCell {
         static let DateFormatRepeatedActivity = "E, MMM d"
         static let DefaultDateFormat = "E, MMM/dd/yyyy"
         
+        static let DaysUntilTitleLabelPastActivity = "Days ago"
+        
         static let BackgroundImageAlpha : CGFloat = 0.3
     }
     
     // MARK : - Outlets
     @IBOutlet weak var activityTitle: UILabel!
     
+    @IBOutlet weak var daysUntilTitle: UILabel!
     @IBOutlet weak var date: UILabel!
     
     @IBOutlet weak var daysUntil: UILabel!
@@ -88,7 +91,7 @@ class ActivityTableViewCell: UITableViewCell {
                 switch activityDays {
                     case 0 :
                         daysUntil.text = "Today"
-                    case -1 :
+                case let day where day < 0 :
                     daysUntil.text = "1 day ago"
                 default :
                     daysUntil.text = "\(activityDays)"

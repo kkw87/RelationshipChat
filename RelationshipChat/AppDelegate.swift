@@ -76,15 +76,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 
             case Cloud.Entity.Message:
                 NotificationCenter.default.post(name: CloudKitNotifications.MessageChannel, object: nil, userInfo: [CloudKitNotifications.MessagKey : ckquery])
+                
             case Cloud.Entity.RelationshipActivity:
                 
-                if ckquery.queryNotificationReason == .recordDeleted {
-                    NotificationCenter.default.post(name: CloudKitNotifications.ActivityDeletedChannel, object: nil, userInfo: [CloudKitNotifications.ActivityDeletedKey : ckquery])
-                } else {
-                    
                     NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : ckquery])
-                }
-                
+        
             default:
                 break
             }

@@ -78,21 +78,24 @@ class UserDailyCheckInDetailTableViewController: UITableViewController, CheckInL
         return cell
     }
     
-    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        
-        let deleteAction = UIContextualAction(style: .destructive, title: Constants.SwipeToDeleteText) { [weak self] (action, view, completionHandler) in
-            self?.performSegue(withIdentifier: Storyboard.SwipeToDeleteUnwindSegue, sender: self)
-            completionHandler(true)
-        }
-        
-        deleteAction.backgroundColor = UIColor.red
-        //deleteAction.image =
-        let configuration = UISwipeActionsConfiguration(actions: [deleteAction])
-        return configuration
-    }
+    //Comment back in for swipe to delete, dont forget the unwind in CheckInByDay
+//    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+//
+//        let deleteAction = UIContextualAction(style: .destructive, title: Constants.SwipeToDeleteText) { [weak self] (action, view, completionHandler) in
+//            self?.performSegue(withIdentifier: Storyboard.SwipeToDeleteUnwindSegue, sender: self)
+//            completionHandler(true)
+//        }
+//
+//        deleteAction.backgroundColor = UIColor.red
+//        //deleteAction.image =
+//        let configuration = UISwipeActionsConfiguration(actions: [deleteAction])
+//        return configuration
+//    }
+//
     
     //MARK: - Class methods
     @objc func navigateToAnnotation(annotationView : MKAnnotation) {
+        //TODO, incomplete, clicking on the arrow should send you to maps with navigation
         
     }
     

@@ -402,8 +402,18 @@ class RelationshipViewController: UIViewController {
         }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.MessageChannel, object: nil, queue: OperationQueue.main) { (_) in
-
-            self.tabBarController?.tabBar.items![1].tag = UIApplication.shared.applicationIconBadgeNumber
+            
+            //CRASH , this may crash 
+            guard let currentBadgeValue = Int((self.tabBarController?.chatBarItem?.badgeValue)!) else {
+                return
+            }
+            
+            switch currentBadgeValue {
+            case 0 :
+                self.tabBarController?.chatBarItem?.badgeValue = "\(1)"
+            default :
+                self.tabBarController?.chatBarItem?.badgeValue = "\(currentBadgeValue + 1)"
+            }
         }
         
     }

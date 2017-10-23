@@ -10,6 +10,10 @@ import UIKit
 import CloudKit
 import MapKit
 
+protocol LocationDataSource {
+    func delete(location : CKRecord)
+}
+
 class UserDailyCheckInByDayTableViewController: UITableViewController {
     
     //MARK : - Constants
@@ -42,7 +46,7 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
         }
     }
     
-    var deletedRecord : CKRecord?
+    var dataSource : LocationDataSource?
     
     //MARK : - VC Lifecycle
     override func viewDidLoad() {
@@ -103,47 +107,6 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
         return configuration
     }
     
-    //Add Swipe to delete with ios 11
-    //Upon Deletion, should unwind back to CheckInTVC
-    
-    
-    
-    
-    /*
-     // Override to support conditional editing of the table view.
-     override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-     // Return false if you do not want the specified item to be editable.
-     return true
-     }
-     */
-    
-    /*
-     // Override to support editing the table view.
-     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-     if editingStyle == .delete {
-     // Delete the row from the data source
-     tableView.deleteRows(at: [indexPath], with: .fade)
-     } else if editingStyle == .insert {
-     // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-     }
-     }
-     */
-    
-    /*
-     // Override to support rearranging the table view.
-     override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-     
-     }
-     */
-    
-    /*
-     // Override to support conditional rearranging of the table view.
-     override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-     // Return false if you do not want the item to be re-orderable.
-     return true
-     }
-     */
-    
     // MARK: - Navigation
     
     // In a storyboard-based application, you will often want to do a little preparation before navigation
@@ -167,23 +130,29 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
         }
     }
     
-    @IBAction func unwindFromDetailTableViewController(segue : UIStoryboardSegue) {
-        
-        guard let sourceVC = segue.source as? UserDailyCheckInDetailTableViewController, let deletedRecordFromSegue = sourceVC.locationRecord else {
-            print("there was a problem deleting the location from unwind")
-            return
-        }
-        
-        updateRelationshipWithDeleted(record: deletedRecordFromSegue)
-    }
-    
+    //Commented out to stop swipe to delete from CheckInDetail
+//    @IBAction func unwindFromDetailTableViewController(segue : UIStoryboardSegue) {
+//
+//        guard let sourceVC = segue.source as? UserDailyCheckInDetailTableViewController, let deletedRecordFromSegue = sourceVC.locationRecord else {
+//            print("there was a problem deleting the location from unwind")
+//            return
+//        }
+//
+//        DispatchQueue.main.async {
+//            self.userLocations = self.userLocations?.filter {
+//                $0.recordID != deletedRecordFromSegue.recordID
+//            }
+//        }
+//    }
+//
     //MARK: - Class Methods
     fileprivate func updateRelationshipWithDeleted(record : CKRecord) {
-        userLocations = userLocations?.filter {
-            $0.recordID != record.recordID
+        DispatchQueue.main.async {
+            self.userLocations = self.userLocations?.filter {
+                $0.recordID != record.recordID
+            }
         }
-
-        NotificationCenter.default.post(name: CloudKitNotifications.LocationDeletedUpdateChannel, object: self, userInfo: [CloudKitNotifications.LocationDeletedKey:record])
+        dataSource?.delete(location: record)
     }
     
 }

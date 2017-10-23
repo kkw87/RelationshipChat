@@ -76,7 +76,8 @@ class EditRelationshipViewController: UITableViewController {
     
     
     // MARK : - Methods
-    @IBAction func saveUpdates(_ sender: Any) {   
+    @IBAction func saveUpdates(_ sender: Any) {
+
         if originalRelationshipDate == relationshipStartDatePicker.date && originalRelationshipStatus == statusArray[statusPicker.selectedRow(inComponent: 0)] {
             
             let noChangesMadeAlertController = UIAlertController(title: Constants.NoRelationshipChangesAlertTitle, message: Constants.NoRelationshipChangesAlertBody, preferredStyle: .alert)
@@ -88,10 +89,6 @@ class EditRelationshipViewController: UITableViewController {
         relationship![Cloud.RelationshipAttribute.Status] = relationshipStatus as CKRecordValue?
         relationship![Cloud.RelationshipAttribute.StartDate] = relationshipStartDatePicker.date as CKRecordValue?
         
-
-        if originalRelationshipDate != relationshipStartDatePicker.date {
-            updateAnniversaryRecord()
-        }
         
         saveButton.isEnabled = false
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
@@ -112,6 +109,13 @@ class EditRelationshipViewController: UITableViewController {
                 print(error!)
                 return
             }
+            
+            DispatchQueue.main.async {
+                if self?.originalRelationshipDate != self?.relationshipStartDatePicker.date {
+                    self?.updateAnniversaryRecord()
+                }
+            }
+            
             
             NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : (self?.relationship)!])
             
@@ -208,7 +212,6 @@ class EditRelationshipViewController: UITableViewController {
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
         }
         Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: { [weak self] (fetchedRecords, error) in
-            
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
             }

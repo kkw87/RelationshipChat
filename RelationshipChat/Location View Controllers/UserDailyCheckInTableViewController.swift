@@ -11,8 +11,7 @@ import MapKit
 import CloudKit
 
 class UserDailyCheckInTableViewController: UITableViewController {
-    
-    
+ 
     //MARK: - Model
     fileprivate var userLocations = [String : [CKRecord]]() {
         didSet {
@@ -146,6 +145,7 @@ class UserDailyCheckInTableViewController: UITableViewController {
                 }
                 locationsByDayVC.navigationItem.title = sendingCellDateTitle
                 locationsByDayVC.userLocations = userLocations[sendingCellDateTitle]
+                locationsByDayVC.dataSource = self 
             default:
                 break
             }
@@ -164,66 +164,8 @@ class UserDailyCheckInTableViewController: UITableViewController {
                 self?.relationshipRecord = relationship
             }
         }
-        
-        NotificationCenter.default.addObserver(forName: CloudKitNotifications.UserLocationUpdateChannel, object: nil, queue: nil) { (notification) in
-            if let currentUserRecord = notification.userInfo?[CloudKitNotifications.UserLocationUpdateKey] as? CKRecord {
-                let userInformation = Cloud.pullUserInformationFrom(usersRecordToLoad: currentUserRecord)
-                self.currentUserName = userInformation.usersFirstName
-            }
-        }
-        
-        NotificationCenter.default.addObserver(forName: CloudKitNotifications.LocationDeletedUpdateChannel, object: nil, queue: OperationQueue.main) {
-            guard let recordOfDeletedLocation = $0.userInfo?[CloudKitNotifications.LocationDeletedKey] as? CKRecord else {
-                //print some sort of error for user feedback
-                return
-            }
-            
-            self.updatedRelationshipAndCurrentLocationsWithDeleted(record : recordOfDeletedLocation)
-            
-        }
     }
-    
-    fileprivate func updatedRelationshipAndCurrentLocationsWithDeleted(record : CKRecord) {
-        
-        //Remove by reference name
-        
-        //Remove the deleted location from the current locations
-        let locationValues = Array(self.userLocations.values).flatMap {
-            $0
-            }.filter {
-                $0.recordID != record.recordID
-        }
-        
-        let originalActivities = self.relationshipRecord![Cloud.RelationshipAttribute.Activities] as CKRecordValue?
-        
-        self.relationshipRecord![Cloud.RelationshipAttribute.Activities] = (self.relationshipRecord![Cloud.RelationshipAttribute.Activities] as! [CKReference]).filter {
-            $0.recordID.recordName != record.recordID.recordName
-            } as CKRecordValue?
-        
-        DispatchQueue.main.async {
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        }
-        
-        let modifyRecordsOp = CKModifyRecordsOperation(recordsToSave: [relationshipRecord!], recordIDsToDelete: [record.recordID])
-        modifyRecordsOp.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecordIDs, error) in
-            
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            }
-            
-            guard error == nil else {
-                self?.relationshipRecord?[Cloud.RelationshipAttribute.Activities] = originalActivities
-                print("error deleting location")
-                return
-            }
-            
-            self?.userLocations = [:]
-            self?.organizeLocations(locations: locationValues)
-            
-        }
-        
-        Cloud.CloudDatabase.PublicDatabase.add(modifyRecordsOp)
-    }
+
     
     fileprivate func fetchNewLocationsFrom(relationship : CKRecord) {
         
@@ -411,4 +353,47 @@ extension UserDailyCheckInTableViewController : CLLocationManagerDelegate {
         })
         
     }
+}
+
+extension UserDailyCheckInTableViewController : LocationDataSource {
+    
+    func delete(location: CKRecord) {
+        //Remove the deleted location from the current locations
+        let locationValues = Array(self.userLocations.values).flatMap {
+            $0
+            }.filter {
+                $0.recordID != location.recordID
+        }
+        
+        let originalLocations = self.relationshipRecord![Cloud.RelationshipAttribute.Locations] as CKRecordValue?
+        
+        self.relationshipRecord![Cloud.RelationshipAttribute.Locations] = (self.relationshipRecord![Cloud.RelationshipAttribute.Locations] as! [CKReference]).filter {
+            $0.recordID.recordName != location.recordID.recordName
+            } as CKRecordValue?
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        }
+        
+        let modifyRecordsOp = CKModifyRecordsOperation(recordsToSave: [relationshipRecord!], recordIDsToDelete: [location.recordID])
+        modifyRecordsOp.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecordIDs, error) in
+            
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+            }
+            
+            guard error == nil else {
+                self?.relationshipRecord?[Cloud.RelationshipAttribute.Locations] = originalLocations
+                print("error deleting location")
+                return
+            }
+            
+            self?.userLocations = [:]
+            self?.organizeLocations(locations: locationValues)
+            
+        }
+        
+        Cloud.CloudDatabase.PublicDatabase.add(modifyRecordsOp)
+    }
+
 }

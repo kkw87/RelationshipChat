@@ -229,7 +229,9 @@ struct Cloud {
                 }
             }
             
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = true
+            }
             Cloud.CloudDatabase.PublicDatabase.add(deleteIndicatorDeleteOperation)
         }
     }

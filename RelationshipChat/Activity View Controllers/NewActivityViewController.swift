@@ -10,7 +10,10 @@ import UIKit
 import CloudKit
 import MapKit
 
-class NewActivityViewController: UITableViewController {
+class NewActivityViewController: UITableViewController{
+    
+    // MARK: - Model
+    var dataSource : ActivityTableViewControllerDataSource?
     
     // MARK : - Constants
     struct Constants {
@@ -20,8 +23,9 @@ class NewActivityViewController: UITableViewController {
         static let AlphabeticalOnlyErrorMessage = "Please only enter alphabetical characters"
         static let DescriptionBoxIsEmptyErrorMessage = "Please enter a description for the activity"
         
-        static let ActivitySavedTitle = "Great, your activity is done!"
-        static let ActivitySaveBody = "Your activity was successfully created!"
+        
+        
+        static let ActivitySavingMessage = "Saving your activity"
         
         static let AlphaValue : CGFloat = 0.3
     }
@@ -73,7 +77,6 @@ class NewActivityViewController: UITableViewController {
     }
     
     // MARK : - Instance properties
-    var relationship : CKRecord?
     var activityLocation : MKPlacemark? {
         didSet {
             if activityLocation == nil {
@@ -89,13 +92,15 @@ class NewActivityViewController: UITableViewController {
     
     fileprivate var newActivity = CKRecord(recordType: Cloud.Entity.RelationshipActivity)
     
+    fileprivate var loadingView = ActivityView(withMessage: "")
+    
     // MARK : - VC Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
         locationDisplayButton.setTitleColor(UIColor.systemBlue, for: .normal)
         locationDisplayButton.backgroundColor = UIColor.white
-
+        navigationItem.largeTitleDisplayMode = .never
     }
     
 
@@ -125,61 +130,43 @@ class NewActivityViewController: UITableViewController {
             let newActivity = CKRecord(recordType: Cloud.Entity.RelationshipActivity)
             let activityDate = datePicker.date
             
-            newActivity[Cloud.RelationshipActivityAttribute.Relationship] = CKReference(record: relationship!, action: .deleteSelf) as CKRecordValue?
+
             newActivity[Cloud.RelationshipActivityAttribute.CreationDate] = activityDate as CKRecordValue?
             newActivity[Cloud.RelationshipActivityAttribute.Message] = activityDescription as CKRecordValue?
             newActivity[Cloud.RelationshipActivityAttribute.Name] = activityTitle as CKRecordValue?
             newActivity[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipActivity as CKRecordValue?
         
-        
-        var relationshipActivityArray = relationship![Cloud.RelationshipAttribute.Activities] as! [CKReference]
-        let activityReference = CKReference(record: newActivity, action: .none)
-        relationshipActivityArray.append(activityReference)
-        
-        
-        relationship![Cloud.RelationshipAttribute.Activities] = relationshipActivityArray as CKRecordValue?
-        
-            if activityLocation != nil {
-                
-                let activityTitle = (activityLocation?.name)!
-                let stringAddress = MKPlacemark.parseAddress(selectedItem: activityLocation!)
-
-                newActivity[Cloud.RelationshipActivityAttribute.LocationStringName] = activityTitle as CKRecordValue?
-                newActivity[Cloud.RelationshipActivityAttribute.LocationStringAddress] = stringAddress as CKRecordValue?
-                newActivity[Cloud.RelationshipActivityAttribute.Location] = CLLocation(latitude: activityLocation!.coordinate.latitude, longitude: activityLocation!.coordinate.longitude) as CKRecordValue?
-            }
+        if activityLocation != nil {
             
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-            saveButton.isEnabled = false
-            findLocationButton.isEnabled = false
-        
-        //save new activity and relationship 
-        
-        let saveActivityOp = CKModifyRecordsOperation(recordsToSave: [newActivity, relationship!], recordIDsToDelete: nil)
-        
-        saveActivityOp.modifyRecordsCompletionBlock = { [weak self] in
+            let activityTitle = (activityLocation?.name)!
+            let stringAddress = MKPlacemark.parseAddress(selectedItem: activityLocation!)
             
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                self?.saveButton.isEnabled = true
-                self?.findLocationButton.isEnabled = true
-            }
-            guard $2 == nil else {
-                _ = Cloud.errorHandling($2!, sendingViewController: nil)
-                return
-            }
-
-            let savedActivity = $0?.filter { ($0[Cloud.RecordKeys.RecordType] as? String) == Cloud.Entity.RelationshipActivity }.first
-            
-            NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : savedActivity!])
-            
-            self?.displayAlertWithTitle(Constants.ActivitySavedTitle, withBodyMessage: Constants.ActivitySaveBody) { _ in
-                self?.performSegue(withIdentifier: Storyboard.ProfileUnwindSegue, sender: self)
-            }
-            
+            newActivity[Cloud.RelationshipActivityAttribute.LocationStringName] = activityTitle as CKRecordValue?
+            newActivity[Cloud.RelationshipActivityAttribute.LocationStringAddress] = stringAddress as CKRecordValue?
+            newActivity[Cloud.RelationshipActivityAttribute.Location] = CLLocation(latitude: activityLocation!.coordinate.latitude, longitude: activityLocation!.coordinate.longitude) as CKRecordValue?
         }
         
-        Cloud.CloudDatabase.PublicDatabase.add(saveActivityOp)
+        
+        view.addSubview(loadingView)
+        loadingView.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
+        loadingView.updateMessageWith(message: Constants.ActivitySavingMessage)
+        UIApplication.shared.isNetworkActivityIndicatorVisible = true
+
+        dataSource?.addActivity(newActivityToSave: newActivity) { [weak self] (activitySaved, error) in
+            
+            print("completed")
+            DispatchQueue.main.async {
+                self?.loadingView.removeFromSuperview()
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+            }
+            
+            guard error == nil else {
+                _ = Cloud.errorHandling(error!, sendingViewController: self)
+                return
+            }
+            
+            self?.performSegue(withIdentifier: Storyboard.ProfileUnwindSegue, sender: self)
+        }
     }
     
     @IBAction func getDirectionsToSelectedAddress(_ sender: UIButton) {
@@ -189,6 +176,11 @@ class NewActivityViewController: UITableViewController {
             mapItem.openInMaps(launchOptions: launchOptions)
         }
     }
+    
+    @IBAction func cancelActivity(_ sender: Any) {
+        presentingViewController?.dismiss(animated: true, completion: nil)
+    }
+    
     
     // MARK: - Navigation
 
@@ -205,6 +197,8 @@ class NewActivityViewController: UITableViewController {
             }
         }
     }
+    
+    
 }
 
 // MARK: - HandlePickedLocation protocol functions

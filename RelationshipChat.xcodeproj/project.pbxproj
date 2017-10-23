@@ -39,6 +39,7 @@
 		484E6D671F7EFA29008D439D /* MapKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 484E6D661F7EFA29008D439D /* MapKit.framework */; };
 		4853C8EF1EA9A93B00CDE7CE /* ChameleonFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4853C8EE1EA9A93B00CDE7CE /* ChameleonFramework.framework */; };
 		4853C8F11EAC187200CDE7CE /* RelationshipViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4853C8F01EAC187200CDE7CE /* RelationshipViewController.swift */; };
+		4859CCA11F93DED700B1D869 /* ActivityTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4859CCA01F93DED700B1D869 /* ActivityTableViewController.swift */; };
 		48BA42041F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */; };
 		48BA42061F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42051F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift */; };
 		48BA42081F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42071F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift */; };
@@ -111,6 +112,7 @@
 		484E6D661F7EFA29008D439D /* MapKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MapKit.framework; path = System/Library/Frameworks/MapKit.framework; sourceTree = SDKROOT; };
 		4853C8EE1EA9A93B00CDE7CE /* ChameleonFramework.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ChameleonFramework.framework; path = "Pods/../build/Debug-iphoneos/ChameleonFramework/ChameleonFramework.framework"; sourceTree = "<group>"; };
 		4853C8F01EAC187200CDE7CE /* RelationshipViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RelationshipViewController.swift; sourceTree = "<group>"; };
+		4859CCA01F93DED700B1D869 /* ActivityTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityTableViewController.swift; sourceTree = "<group>"; };
 		48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserDailyCheckInTableViewController.swift; sourceTree = "<group>"; };
 		48BA42051F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserDailyCheckInByDayTableViewController.swift; sourceTree = "<group>"; };
 		48BA42071F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CheckInLocationTableViewCell.swift; sourceTree = "<group>"; };
@@ -178,22 +180,11 @@
 		483347BD1E95C9C4004AF5BD /* ViewControllers */ = {
 			isa = PBXGroup;
 			children = (
-				48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */,
-				48BA42051F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift */,
-				48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailTableViewController.swift */,
-				483347DA1E95CA5A004AF5BD /* EditRelationshipViewController.swift */,
-				483347D71E95CA52004AF5BD /* RelationshipConfirmationViewController.swift */,
-				483347D51E95CA3D004AF5BD /* UpcomingActivitiesTableViewController.swift */,
-				483347CC1E95C9F7004AF5BD /* NewRelationshipViewController.swift */,
-				483347CA1E95C9F3004AF5BD /* NewProfileViewController.swift */,
-				483347CF1E95CA03004AF5BD /* ProfileViewController.swift */,
-				482BD8FC1EC7A9AB007F5244 /* NewActivityViewController.swift */,
-				4853C8F01EAC187200CDE7CE /* RelationshipViewController.swift */,
-				483347C01E95C9D8004AF5BD /* ChatViewController.swift */,
-				483347C41E95C9E4004AF5BD /* EditProfileViewController.swift */,
-				4840EC541F291D8B0034697C /* ActivityOverviewViewController.swift */,
-				484582551F313A3800F941C3 /* ActivityLocationSelectionViewController.swift */,
-				484582571F3290FE00F941C3 /* LocationSearchTableViewController.swift */,
+				48CE5A9F1F9083C300E2434E /* Chat View Controllers */,
+				48CE5A9E1F90837B00E2434E /* Profile View Controllers */,
+				48CE5A9D1F90837000E2434E /* Relationship View Controllers */,
+				48CE5A9C1F90834C00E2434E /* Location View Controllers */,
+				48CE5A9B1F90833E00E2434E /* Activity View Controllers */,
 			);
 			name = ViewControllers;
 			sourceTree = "<group>";
@@ -239,6 +230,58 @@
 				482BD8FA1EC415F9007F5244 /* NotificationChannelAndKeys.swift */,
 			);
 			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		48CE5A9B1F90833E00E2434E /* Activity View Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				484582571F3290FE00F941C3 /* LocationSearchTableViewController.swift */,
+				482BD8FC1EC7A9AB007F5244 /* NewActivityViewController.swift */,
+				483347D51E95CA3D004AF5BD /* UpcomingActivitiesTableViewController.swift */,
+				4859CCA01F93DED700B1D869 /* ActivityTableViewController.swift */,
+				4840EC541F291D8B0034697C /* ActivityOverviewViewController.swift */,
+				484582551F313A3800F941C3 /* ActivityLocationSelectionViewController.swift */,
+			);
+			path = "Activity View Controllers";
+			sourceTree = "<group>";
+		};
+		48CE5A9C1F90834C00E2434E /* Location View Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */,
+				48BA42051F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift */,
+				48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailTableViewController.swift */,
+			);
+			path = "Location View Controllers";
+			sourceTree = "<group>";
+		};
+		48CE5A9D1F90837000E2434E /* Relationship View Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				483347DA1E95CA5A004AF5BD /* EditRelationshipViewController.swift */,
+				483347D71E95CA52004AF5BD /* RelationshipConfirmationViewController.swift */,
+				483347CC1E95C9F7004AF5BD /* NewRelationshipViewController.swift */,
+				4853C8F01EAC187200CDE7CE /* RelationshipViewController.swift */,
+			);
+			path = "Relationship View Controllers";
+			sourceTree = "<group>";
+		};
+		48CE5A9E1F90837B00E2434E /* Profile View Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				483347CA1E95C9F3004AF5BD /* NewProfileViewController.swift */,
+				483347CF1E95CA03004AF5BD /* ProfileViewController.swift */,
+				483347C41E95C9E4004AF5BD /* EditProfileViewController.swift */,
+			);
+			path = "Profile View Controllers";
+			sourceTree = "<group>";
+		};
+		48CE5A9F1F9083C300E2434E /* Chat View Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				483347C01E95C9D8004AF5BD /* ChatViewController.swift */,
+			);
+			name = "Chat View Controllers";
 			sourceTree = "<group>";
 		};
 		48F7DAF91D6E247400E164B7 = {
@@ -468,6 +511,7 @@
 				484628681F43A40900C92CF5 /* CoreDataMessageModel.xcdatamodeld in Sources */,
 				4853C8F11EAC187200CDE7CE /* RelationshipViewController.swift in Sources */,
 				484628931F440AAB00C92CF5 /* CoreDataDatabase.swift in Sources */,
+				4859CCA11F93DED700B1D869 /* ActivityTableViewController.swift in Sources */,
 				4844FEA41EDE9B2F00B75CBD /* GlobalConstants.swift in Sources */,
 				483347C71E95C9E9004AF5BD /* Extensions.swift in Sources */,
 				48CB89A91F017E7F00632672 /* ConfirmationView.swift in Sources */,
