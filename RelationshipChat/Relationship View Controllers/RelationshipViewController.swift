@@ -88,19 +88,22 @@ class RelationshipViewController: UIViewController {
     
     @IBOutlet weak var relationshipStartDate: UILabel!
     
-    @IBOutlet weak var notInARelationshipViewText: UILabel!
     @IBOutlet weak var newRelationshipButton: UIButton! {
         didSet {
             newRelationshipButton.roundEdges()
             newRelationshipButton.clipsToBounds = true
-            newRelationshipButton.backgroundColor = UIColor.clear
+            newRelationshipButton.backgroundColor = UIColor.flatPurple()
+            print(newRelationshipButton.backgroundColor)
         }
     }
     
     @IBOutlet weak var cancelPendingRelationshipButton: UIButton! {
         didSet {
             cancelPendingRelationshipButton.isHidden = true
+            cancelPendingRelationshipButton.backgroundColor = UIColor.flatPurple()
+            cancelPendingRelationshipButton.titleLabel?.textColor = UIColor.white
             cancelPendingRelationshipButton.roundEdges()
+            cancelPendingRelationshipButton.clipsToBounds = true
         }
     }
     
@@ -175,7 +178,6 @@ class RelationshipViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         relationshipWithButton.backgroundColor = UIColor.clear
-        newRelationshipButton.backgroundColor = UIColor.clear
         tabBarController?.tabBar.items![1].tag = UIApplication.shared.applicationIconBadgeNumber
     }
     
@@ -196,23 +198,29 @@ class RelationshipViewController: UIViewController {
             
             
             self?.currentUsersRecord?[Cloud.UserAttribute.Relationship] = nil
-            self?.relationshipRecord = nil
             
             deleteOperation.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecords, error) in
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                if error != nil {
+                
+                DispatchQueue.main.async {
+                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    
+                }
+                
+                guard error == nil else {
                     DispatchQueue.main.async {
                         _ = Cloud.errorHandling(error!, sendingViewController: self)
                         self?.relationshipRecord = backupRelationship
                         self?.currentUsersRecord?[Cloud.UserAttribute.Relationship] = (backupRelationship as! CKRecordValue)
                     }
-                    
-                } else {
-                    DispatchQueue.main.async {
-                        self?.displayAlertWithTitle("You cancelled your pending request", withBodyMessage: "Your pending request was successfully cancelled", withBlock: nil)
-                        NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)
-                    }
+                    return
                 }
+                
+                DispatchQueue.main.async {
+                    self?.displayAlertWithTitle("You cancelled your pending request", withBodyMessage: "Your pending request was successfully cancelled", withBlock: nil)
+                    self?.relationshipRecord = nil
+                    NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)
+                }
+                
             }
             
             Cloud.CloudDatabase.PublicDatabase.add(deleteOperation)
@@ -234,20 +242,21 @@ class RelationshipViewController: UIViewController {
     fileprivate func setupRelationship() {
         
         if let status = relationshipRecord?[Cloud.RelationshipAttribute.Status] as? String {
-            switch status {
-                
-            case Cloud.RelationshipStatus.Pending :
+            
+            func setupUIForPendingRelationship() {
                 notInRelationshipView.isHidden = false
-                notInARelationshipViewText.text = Constants.NotInARelationshipPendingMessage
-                newRelationshipButton.isEnabled = false
+                newRelationshipButton.isHidden = true
                 editButton.isEnabled = false
                 relationshipStatus.text = Constants.BlankMessage
                 relationshipStartDate.text = Constants.PendingStatusMessage
                 tabBarController?.chatBarItem?.isEnabled = false
                 cancelPendingRelationshipButton.isHidden = false
                 statusLabel.text = Constants.StatusLabelTextDefault
-            default :
+            }
+            
+            func setupUIForInRelationship() {
                 tabBarController?.chatBarItem?.isEnabled = true
+                newRelationshipButton.isHidden = true 
                 statusLabel.text = Constants.StatusLabelTextRelationship
                 editButton.isEnabled = true
                 relationshipStatus.text = relationshipRecord![Cloud.RelationshipAttribute.Status] as? String ?? Constants.DefaultRelationshipStatusMessage
@@ -260,23 +269,34 @@ class RelationshipViewController: UIViewController {
                 
                 cancelPendingRelationshipButton.isHidden = true
             }
+            
+            switch status {
+            case Cloud.RelationshipStatus.Pending :
+                setupUIForPendingRelationship()
+            default :
+                setupUIForInRelationship()
+            }
         }
         
     }
     
+    
+    
     fileprivate func unsetRelationship() {
-        statusLabel.text = Constants.StatusLabelTextDefault
-        relationshipStatus.text = Constants.DefaultRelationshipStatusMessage
-        relationshipStartDate.text = Constants.DefaultDateText
-        notInRelationshipView.isHidden = false
-        newRelationshipButton.isEnabled = true
-        notInARelationshipViewText.text = Constants.DefaultNotInARelationshipMessage
-        editButton.isEnabled = false
-        tabBarController?.chatBarItem?.isEnabled = false
-        secondaryUsersRecord = nil
-        cancelPendingRelationshipButton.isHidden = true
         
-        //Get users relationship value and remove it,
+        func setupUIForNotInARelationship() {
+            statusLabel.text = Constants.StatusLabelTextDefault
+            relationshipStatus.text = Constants.DefaultRelationshipStatusMessage
+            relationshipStartDate.text = Constants.DefaultDateText
+            notInRelationshipView.isHidden = false
+            newRelationshipButton.isHidden = false
+            editButton.isEnabled = false
+            tabBarController?.chatBarItem?.isEnabled = false
+            secondaryUsersRecord = nil
+            cancelPendingRelationshipButton.isHidden = true
+        }
+        
+        setupUIForNotInARelationship()
         
         if currentUsersRecord?[Cloud.UserAttribute.Relationship] != nil {
             currentUsersRecord![Cloud.UserAttribute.Relationship] = nil
@@ -312,7 +332,9 @@ class RelationshipViewController: UIViewController {
                 
                 UIApplication.shared.isNetworkActivityIndicatorVisible = true
                 Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: { (fetchedRecords, error) in
-                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    DispatchQueue.main.async {
+                        UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    }
                     if error != nil {
                         DispatchQueue.main.async {
                             _ = Cloud.errorHandling(error!, sendingViewController: self)
@@ -321,11 +343,13 @@ class RelationshipViewController: UIViewController {
                         
                         let requestSender = relationshipRequestRecord[Cloud.RelationshipRequestAttribute.Sender] as! CKReference
                         let requestRelationship = relationshipRequestRecord[Cloud.RelationshipRequestAttribute.Relationship] as! CKReference
-                        UIApplication.shared.isNetworkActivityIndicatorVisible = true
                         
+                        DispatchQueue.main.async {
+                            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+                        }
                         Cloud.pullRelationshipRequest(fromSender: requestSender.recordID, relationshipRecordID: requestRelationship.recordID, relationshipRequestID: relationshipRequest.recordID!, presentingVC: self) {(sendingUsersRecord, requestedRelationshipRecord) in
-                            UIApplication.shared.isNetworkActivityIndicatorVisible = false
                             DispatchQueue.main.async {
+                                UIApplication.shared.isNetworkActivityIndicatorVisible = false
                                 
                                 self?.sendersRecord = sendingUsersRecord
                                 self?.requestedRelationship = requestedRelationshipRecord
@@ -360,9 +384,7 @@ class RelationshipViewController: UIViewController {
                     }
                 }
             } else if let newRelationship = notification.userInfo?[CloudKitNotifications.RelationshipUpdateKey] as? CKRecord {
-                
                 DispatchQueue.main.async {
-                    
                     self?.relationshipRecord = newRelationship
                 }
             } else {

@@ -107,18 +107,14 @@ class RelationshipConfirmationViewController: UIViewController {
                 return
             }
             
-            let filteredRecords = savedRecords?.filter {
-                ($0[Cloud.RecordKeys.RecordType] as! String) == Cloud.Entity.Relationship
-            }
-            
-            if let savedRelationshipRecord = filteredRecords?.first {
                 DispatchQueue.main.async {
                     self?.displayAlertWithTitle(Constants.RelationshipAcceptedTitle, withBodyMessage: Constants.RelationshipAcceptedBody, withBlock: { _ in
-                        NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : savedRelationshipRecord])
+                        
+                        NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : self?.relationship as Any])
                         self?.presentingViewController?.dismiss(animated: true, completion: nil)
                     })
                 }
-            }
+            
             
         }
         
@@ -143,15 +139,17 @@ class RelationshipConfirmationViewController: UIViewController {
                 let declinedResponseRecordsOp = CKModifyRecordsOperation(recordsToSave: [declinedResponseRecord], recordIDsToDelete: [(self?.relationshipRequestID)!])
                 declinedResponseRecordsOp.modifyRecordsCompletionBlock = { (savedRecords, deletedRecords, error) in
                     
-                    if error != nil {
+                    guard error == nil else {
                         _ = Cloud.errorHandling(error!, sendingViewController: self)
-                    } else {
-                        DispatchQueue.main.async {
-                            self?.displayAlertWithTitle(Constants.RelationshipDeclinedTitle, withBodyMessage: Constants.RelationshipDeclinedBody, withBlock: { _ in
-                                self?.presentingViewController?.dismiss(animated: true, completion: nil)
-                            })
-                        }
+                        return
                     }
+                    
+                    DispatchQueue.main.async {
+                        self?.displayAlertWithTitle(Constants.RelationshipDeclinedTitle, withBodyMessage: Constants.RelationshipDeclinedBody, withBlock: { _ in
+                            self?.presentingViewController?.dismiss(animated: true, completion: nil)
+                        })
+                    }
+                    
                     
                 }
                 Cloud.CloudDatabase.PublicDatabase.add(declinedResponseRecordsOp)

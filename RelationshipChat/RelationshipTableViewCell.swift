@@ -86,25 +86,29 @@ class RelationshipTableViewCell: UITableViewCell {
             saveRecordsOperation.recordsToSave = makeChangesToRecords()
             saveRecordsOperation.savePolicy = .allKeys
             
-//            let activityVC = ActivityViewController(message: Constants.RelationshipActivityMessage)
-//            
-//            delegate?.presentViewController(activityVC)
-            
-            
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = true
+            }
+      
             saveRecordsOperation.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecordsID, error) in
                 
-//                activityVC.presentingViewController?.dismiss(animated: true, completion: nil)
+                DispatchQueue.main.async {
+                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                }
                 
-                if error != nil {
+                guard error == nil else {
                     _ = Cloud.errorHandling(error!, sendingViewController: nil)
-                } else {
+                    print("error, newrelationship from relationshiptableviewcell")
+                    return
+                }
+
                     self?.delegate?.displayAlertWithTitle(Constants.RelationshipSuccessTitle, withBodyMessage: Constants.RelationshipBodyMessage) {_ in
                         self?.delegate?.popBackToRoot()
                     }
                     
                     let newRelationship = savedRecords?.filter { $0[Cloud.RecordKeys.RecordType] as! String == Cloud.Entity.Relationship}.first
                     NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : newRelationship!])
-                }
+                
             }
             Cloud.CloudDatabase.PublicDatabase.add(saveRecordsOperation)
         }

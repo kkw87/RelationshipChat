@@ -42,8 +42,7 @@
 		4859CCA11F93DED700B1D869 /* ActivityTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4859CCA01F93DED700B1D869 /* ActivityTableViewController.swift */; };
 		48BA42041F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */; };
 		48BA42061F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42051F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift */; };
-		48BA42081F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42071F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift */; };
-		48BA420A1F67A10F00D5FBBC /* UserDailyCheckInDetailTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailTableViewController.swift */; };
+		48BA420A1F67A10F00D5FBBC /* UserDailyCheckInDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailViewController.swift */; };
 		48CB89A91F017E7F00632672 /* ConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CB89A81F017E7F00632672 /* ConfirmationView.swift */; };
 		48CB89AB1F020D2500632672 /* ImageLabelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CB89AA1F020D2500632672 /* ImageLabelView.swift */; };
 		48CB89AD1F035A7800632672 /* ActivityTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CB89AC1F035A7800632672 /* ActivityTableViewCell.swift */; };
@@ -115,8 +114,7 @@
 		4859CCA01F93DED700B1D869 /* ActivityTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityTableViewController.swift; sourceTree = "<group>"; };
 		48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserDailyCheckInTableViewController.swift; sourceTree = "<group>"; };
 		48BA42051F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserDailyCheckInByDayTableViewController.swift; sourceTree = "<group>"; };
-		48BA42071F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CheckInLocationTableViewCell.swift; sourceTree = "<group>"; };
-		48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailTableViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserDailyCheckInDetailTableViewController.swift; sourceTree = "<group>"; };
+		48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserDailyCheckInDetailViewController.swift; sourceTree = "<group>"; };
 		48CB89A81F017E7F00632672 /* ConfirmationView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConfirmationView.swift; sourceTree = "<group>"; };
 		48CB89AA1F020D2500632672 /* ImageLabelView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ImageLabelView.swift; path = ../ImageLabelView.swift; sourceTree = "<group>"; };
 		48CB89AC1F035A7800632672 /* ActivityTableViewCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActivityTableViewCell.swift; sourceTree = "<group>"; };
@@ -192,7 +190,6 @@
 		483347D21E95CA10004AF5BD /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				48BA42071F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift */,
 				483347DC1E95CA61004AF5BD /* MessageViewIncomingCell.swift */,
 				48CB89A81F017E7F00632672 /* ConfirmationView.swift */,
 				48CB89AA1F020D2500632672 /* ImageLabelView.swift */,
@@ -250,7 +247,7 @@
 			children = (
 				48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */,
 				48BA42051F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift */,
-				48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailTableViewController.swift */,
+				48BA42091F67A10F00D5FBBC /* UserDailyCheckInDetailViewController.swift */,
 			);
 			path = "Location View Controllers";
 			sourceTree = "<group>";
@@ -492,9 +489,8 @@
 				483347C51E95C9E4004AF5BD /* EditProfileViewController.swift in Sources */,
 				48BA42061F4FEAE300D5FBBC /* UserDailyCheckInByDayTableViewController.swift in Sources */,
 				48BA42041F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift in Sources */,
-				48BA42081F4FEE5100D5FBBC /* CheckInLocationTableViewCell.swift in Sources */,
 				484628971F46845B00C92CF5 /* Message.swift in Sources */,
-				48BA420A1F67A10F00D5FBBC /* UserDailyCheckInDetailTableViewController.swift in Sources */,
+				48BA420A1F67A10F00D5FBBC /* UserDailyCheckInDetailViewController.swift in Sources */,
 				484582561F313A3800F941C3 /* ActivityLocationSelectionViewController.swift in Sources */,
 				483347CB1E95C9F3004AF5BD /* NewProfileViewController.swift in Sources */,
 				48CFCD221E95D1D90051D8F6 /* ActivityView.swift in Sources */,

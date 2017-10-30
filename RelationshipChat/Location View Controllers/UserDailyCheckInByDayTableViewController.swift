@@ -115,14 +115,12 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
         if let identifier = segue.identifier {
             switch identifier {
             case Storyboard.DetailSegue:
-                if let detailTV = segue.destination as? UserDailyCheckInDetailTableViewController {
-                    
+                if let detailTV = segue.destination as? UserDailyCheckInDetailViewController {
                     let indexPath = tableView.indexPath(for: sender as! UITableViewCell)!
                     let selectedRecord = userLocations![indexPath.row]
                     let locationCreatorName = selectedRecord[Cloud.UserLocationAttribute.UserName] as! String
                     detailTV.navigationItem.title = locationCreatorName
                     detailTV.locationRecord = selectedRecord
-                    
                 }
             default:
                 break

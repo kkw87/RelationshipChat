@@ -38,6 +38,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         static let AcceptedTitleText = "Congratulations!"
         static let AcceptedBodyText = " has accepted your relationship request!"
         
+        static let RelationshipRecordDeletedTitle = "Your relationship no longer exists"
+        static let RelationshipRecordDeletedBody = "Your relationship was ended or your request was denied"
+        
         static var DefaultUserPicture : UIImage = {
             let picture = UIImage(named: "DefaultPicture")
             return picture!
@@ -291,48 +294,67 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     fileprivate var relationshipRecord : CKRecord? {
         didSet {
-            if relationshipRecord != nil {
-                switch relationshipRecord![Cloud.RelationshipAttribute.Status] as! String {
-                    
-                case Cloud.RelationshipStatus.Pending :
-                    pageControl.isHidden = true 
-                    embedViewContainer.isHidden = true
-                    notInARelationshipView.isHidden = false
-                    tabBarController?.chatBarItem?.isEnabled = false
-                    notInARelationshipLabel.text = Constants.PendingNotInARelationshipViewText
-                    secondaryUser = nil
-                    daysLabelTitle.text = "Your relationship is"
-                    daysLabel.text = "Pending"
-                default :
-                    pageControl.isHidden = false
-                    embedViewContainer.isHidden = false
-                    tabBarController?.chatBarItem?.isEnabled = true
-                    notInARelationshipView.isHidden = true
-                    relationshipStatus = relationshipRecord![Cloud.RelationshipAttribute.Status] as! String
-                    relationshipStartDate = relationshipRecord![Cloud.RelationshipAttribute.StartDate] as? Date
-                    
-                    if let startDate = relationshipRecord![Cloud.RelationshipAttribute.StartDate] as? Date {
-                        relationshipStartDate = startDate
-                    }
-                    
-                    if let relationshipActivities = relationshipRecord![Cloud.RelationshipAttribute.Activities] as? [CKReference] {
-                        loadActivitiesFrom(newRelationshipActivityReferences: relationshipActivities)
-                    }
-                    
+            
+            func setupUIForPending() {
+                pageControl.isHidden = true
+                embedViewContainer.isHidden = true
+                notInARelationshipView.isHidden = false
+                tabBarController?.chatBarItem?.isEnabled = false
+                notInARelationshipLabel.text = Constants.PendingNotInARelationshipViewText
+                secondaryUser = nil
+                daysLabelTitle.text = "Your relationship is"
+                daysLabel.text = "Pending"
+            }
+            
+            func setupUIForRelationship() {
+                pageControl.isHidden = false
+                embedViewContainer.isHidden = false
+                tabBarController?.chatBarItem?.isEnabled = true
+                notInARelationshipView.isHidden = true
+                relationshipStatus = relationshipRecord![Cloud.RelationshipAttribute.Status] as! String
+                relationshipStartDate = relationshipRecord![Cloud.RelationshipAttribute.StartDate] as? Date
+                
+                if let startDate = relationshipRecord![Cloud.RelationshipAttribute.StartDate] as? Date {
+                    relationshipStartDate = startDate
                 }
                 
-            } else {
+                if let relationshipActivities = relationshipRecord![Cloud.RelationshipAttribute.Activities] as? [CKReference] {
+                    loadActivitiesFrom(newRelationshipActivityReferences: relationshipActivities)
+                }
+            }
+            
+            func setupUIForNoRelationship() {
                 pageControl.isHidden = true
                 embedViewContainer.isHidden = true
                 daysLabelTitle.text = "You Are"
+                daysLabel.text = Constants.DefaultRelationshipText
                 relationshipStatus = Constants.DefaultRelationshipText
                 notInARelationshipLabel.text = Constants.DefaultNotInARelationshipViewText
                 notInARelationshipView.isHidden = false
                 tabBarController?.chatBarItem?.isEnabled = false
                 secondaryUser = nil
             }
+            
+            
+            if relationshipRecord != nil {
+                switch relationshipRecord![Cloud.RelationshipAttribute.Status] as! String {
+                case Cloud.RelationshipStatus.Pending :
+                    DispatchQueue.main.async {
+                        setupUIForPending()
+                    }
+                default :
+                    DispatchQueue.main.async {
+                        setupUIForRelationship()
+                    }
+                }
+            } else {
+                DispatchQueue.main.async {
+                    setupUIForNoRelationship()
+                }
+            }
         }
     }
+    
     // MARK: - Relationship request variables
     fileprivate var sendersRecord : CKRecord?
     fileprivate var requestedRelationship : CKRecord?
@@ -368,7 +390,8 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             if usersRecord == nil {
                 pullUsersRecord()
             }
-            tabBarController?.tabBar.items![1].tag = UIApplication.shared.applicationIconBadgeNumber
+            
+            tabBarController?.chatBarItem?.badgeValue = UIApplication.shared.applicationIconBadgeNumber == 0 ? nil : String(UIApplication.shared.applicationIconBadgeNumber)
             checkRelationshipRequests()
             checkRelationshipRequestResponse()
         }
@@ -474,7 +497,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         //Add notification observer for messages, to update chat tab bar badge
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.RelationshipUpdateChannel, object: nil, queue: nil) { [weak self] (notification) in
-            
+
             if let updatedRelationship = notification.userInfo?[CloudKitNotifications.RelationshipUpdateKey] as? CKQueryNotification {
                 
                 DispatchQueue.main.async {
@@ -484,13 +507,16 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     DispatchQueue.main.async {
                         UIApplication.shared.isNetworkActivityIndicatorVisible = false
                     }
-                    if error != nil {
-                        _ = _ = Cloud.errorHandling(error!, sendingViewController: nil)
-                    } else {
+                    
+                    guard error == nil else {
+                        _ = Cloud.errorHandling(error!, sendingViewController: self)
+                        return
+                    }
+        
                         DispatchQueue.main.async {
                             weakSelf?.relationshipRecord = newRelationship!
                         }
-                    }
+                    
                 })
             } else if let newRelationship = notification.userInfo?[CloudKitNotifications.RelationshipUpdateKey] as? CKRecord {
                 DispatchQueue.main.async {
@@ -601,27 +627,21 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             }
         }
         
-        NotificationCenter.default.addObserver(forName: CloudKitNotifications.ActivityUpdateChannel, object: nil, queue: OperationQueue.main) { (notification) in
+        NotificationCenter.default.addObserver(forName: CloudKitNotifications.ActivityUpdateChannel, object: nil, queue: OperationQueue.main) { [weak self](notification) in
             if let newActivity = notification.userInfo?[CloudKitNotifications.ActivityUpdateKey] as? CKRecord {
                 DispatchQueue.main.async {
-                    self.convertRecordsToActivities(records: [newActivity])
+                    self?.relationshipActivities += (self?.convertRecordsToActivities(records: [newActivity]))!
                 }
             }
         }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.MessageChannel, object: nil, queue: OperationQueue.main) { (_) in
-            
-            //CRASH, this may crash 
-            guard let currentBadgeValue = Int((self.tabBarController?.chatBarItem?.badgeValue)!) else {
+                guard let stringBadgeValue = self.tabBarController?.chatBarItem?.badgeValue, let currentBadgeValue = Int(stringBadgeValue) else {
+                    self.tabBarController?.chatBarItem?.badgeValue = String(1)
                 return
             }
+                self.tabBarController?.chatBarItem?.badgeValue = String(currentBadgeValue + 1)
             
-            switch currentBadgeValue {
-            case 0 :
-                self.tabBarController?.chatBarItem?.badgeValue = "\(1)"
-            default :
-                self.tabBarController?.chatBarItem?.badgeValue = "\(currentBadgeValue + 1)"
-            }
         }
     }
     
@@ -711,14 +731,18 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     self?.loadingView.removeFromSuperview()
                 }
                 _ = Cloud.errorHandling(error!, sendingViewController: self)
-                //Relationship not found
+
                 if error!._code == 11 {
                     self?.usersRecord![Cloud.UserAttribute.Relationship] = nil
+                    self?.relationshipRecord = nil
                     Cloud.CloudDatabase.PublicDatabase.save(self!.usersRecord!) {
                         guard $1 == nil else {
-                            _ = Cloud.errorHandling(error!, sendingViewController: self)
+                            _ = Cloud.errorHandling($1!, sendingViewController: nil)
                             return
                         }
+                        
+                        self?.displayAlertWithTitle(Constants.RelationshipRecordDeletedTitle, withBodyMessage: Constants.RelationshipRecordDeletedBody, withBlock: nil)
+                        
                     }
                 }
                 return
@@ -801,8 +825,6 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     fileprivate func declinedRelationshipResponseSetup() {
         
         self.usersRecord![Cloud.UserAttribute.Relationship] = nil
-        self.relationshipRecord = nil
-        
         
         let declinedRelationshipRecordsOp = CKModifyRecordsOperation(recordsToSave: [self.usersRecord!], recordIDsToDelete: [self.relationshipRecord!.recordID])
         declinedRelationshipRecordsOp.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecords, error) in
@@ -813,7 +835,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             }
             
             DispatchQueue.main.async {
-                self?.displayAlertWithTitle(Constants.DeclinedTitleText, withBodyMessage: Constants.DeclinedBodyText, withBlock: nil)
+                self?.displayAlertWithTitle(Constants.DeclinedTitleText, withBodyMessage: Constants.DeclinedBodyText) { [weak self] (_) in
+                    self?.relationshipRecord = nil
+                }
             }
             NotificationCenter.default.post(name: CloudKitNotifications.CurrentUserRecordUpdateChannel, object: nil, userInfo: [CloudKitNotifications.CurrentUserRecordUpdateKey : (self?.usersRecord)!])
             NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)

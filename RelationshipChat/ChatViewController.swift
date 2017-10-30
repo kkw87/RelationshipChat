@@ -61,7 +61,6 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         didSet {
             DispatchQueue.main.async {
                 UIApplication.shared.applicationIconBadgeNumber = 0
-                print("called")
             }
             
         }
@@ -134,9 +133,8 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
     
     //MARK: - Setup Methods
     fileprivate func setupUI() {
-        //Fix issue with input bar not showing up with tab bar
-        //self.edgesForExtendedLayout = []
-        
+        self.edgesForExtendedLayout = []
+        tabBarController?.tabBar.isTranslucent = false
         //Set default senderID and displayname for JSQMessagesVC so it does not crash
         self.senderId = Constants.DefaultSenderID
         self.senderDisplayName = Constants.DefaultSenderDisplayName
@@ -166,18 +164,24 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         
         self.collectionView.register(MessageViewIncomingCell.nib(), forCellWithReuseIdentifier: self.incomingCellIdentifier)
         self.collectionView.register(MessageViewIncomingCell.nib(), forCellWithReuseIdentifier: self.incomingMediaCellIdentifier)
-        
-        
     }
     
     
     //MARK: - Class Methods
     
     fileprivate func fetchNewMessages() {
+
         let messageSearchPredicate = NSPredicate(format: "relationship = %@", self.currentRelationship!)
         let messageFetchQuery = CKQuery(recordType: Cloud.Entity.Message, predicate: messageSearchPredicate)
         
+        UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        
         Cloud.CloudDatabase.PublicDatabase.perform(messageFetchQuery, inZoneWith: nil) { [weak self] (newMessages, error) in
+            
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+            }
+            
             guard error == nil else {
                 _ = Cloud.errorHandling(error!, sendingViewController: self)
                 print("error fetching new messages, chat vc")
@@ -185,16 +189,14 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
             }
             
             for newMessage in newMessages! {
-                print("new message saved!")
-                print(newMessage)
                 self?.saveCloudMessageToCoreData(newMessage)
             }
             
             DispatchQueue.main.async {
                 UIApplication.shared.applicationIconBadgeNumber = 0
                 self?.tabBarController?.chatBarItem?.badgeValue = nil
-                self?.finishReceivingMessage()
             }
+            
         }
     }
     
@@ -507,17 +509,23 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         if let userImage = RCCache.shared[senderID as AnyObject] {
             return JSQMessagesAvatarImage(avatarImage: userImage, highlightedImage: userImage, placeholderImage: defaultUserPicture)
         } else {
-            let predicate = NSPredicate(format: "recordName = %@", data.senderId)
-            let query = CKQuery(recordType: Cloud.Entity.User, predicate: predicate)
             
-            Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: {(fetchedRecord, error) in
-                
+        
+            var recordIDToFetch : CKRecordID
+            
+            if data.senderId == currentUser?.recordID.recordName {
+                recordIDToFetch = currentUser!.recordID
+            } else {
+                recordIDToFetch = secondaryUser!.recordID
+            }
+
+            Cloud.CloudDatabase.PublicDatabase.fetch(withRecordID: recordIDToFetch, completionHandler: { (fetchedRecord, error) in
                 guard error == nil else {
                     _ = Cloud.errorHandling(error!, sendingViewController: self)
                     return
                 }
                 
-                guard let usersRecord = fetchedRecord?.first, let imageAsset = usersRecord[Cloud.UserAttribute.ProfileImage] as? CKAsset, let convertedImage = imageAsset.convertToImage() else {
+                guard let usersRecord = fetchedRecord, let imageAsset = usersRecord[Cloud.UserAttribute.ProfileImage] as? CKAsset, let convertedImage = imageAsset.convertToImage() else {
                     return
                 }
                 
@@ -803,6 +811,8 @@ extension ChatViewController {
     
     func saveCloudMessageToCoreData(_ message : CKRecord) {
         
+        //newMessage needs to be added to the message array
+        
         let bodyMessage = message[Cloud.MessageAttribute.Text] as? String
         let displayName = message[Cloud.MessageAttribute.SenderDisplayName] as? String
         let senderID = message[Cloud.MessageAttribute.SenderID] as? String
@@ -820,8 +830,8 @@ extension ChatViewController {
         messageRequest.predicate = NSPredicate(format : "recordName = %@", message.recordID.recordName)
         
         CoreDataDB.Context.perform {
-            
-            guard let existingMessage = try? CoreDataDB.Context.fetch(messageRequest), existingMessage.isEmpty else {
+
+            guard let _ = (try? CoreDataDB.Context.fetch(messageRequest))?.isEmpty else {
                 return
             }
             
@@ -829,21 +839,23 @@ extension ChatViewController {
                 newMessage.media = UIImagePNGRepresentation(messageMediaPhoto)!
             }
             
-            CoreDataDB.Container.performBackgroundTask {_ in
-                
                 do {
                     try CoreDataDB.Context.save()
-                    Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: message.recordID, completionHandler: { (deletedRecordID, error) in
+                    Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: message.recordID, completionHandler: { [weak self] (deletedRecordID, error) in
                         guard error == nil else {
                             _ = Cloud.errorHandling(error!, sendingViewController: self)
                             return
                         }
+                        
+                        DispatchQueue.main.async {
+                            self?.messages.append(self!.convertCoreDBMessageToJSQ(newMessage))
+                            self?.finishReceivingMessage()
+                        }
+                        
                     })
                 } catch {
                     print(error)
                 }
-            }
-            
         }
     }
     

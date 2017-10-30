@@ -158,6 +158,7 @@ struct Cloud {
         rinfo.desiredKeys = [Cloud.RecordKeys.RecordType]
         rinfo.shouldSendContentAvailable = true
         rinfo.shouldBadge = true
+        //TODO, default sound name is playing 
         rinfo.soundName = "messageSound"
         messageSubscription.notificationInfo = rinfo
         
