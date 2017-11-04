@@ -14,7 +14,7 @@ class ActivityTableViewCell: UITableViewCell {
     // MARK : - Constants
     struct Constants {
         static let DateFormatRepeatedActivity = "E, MMM d"
-        static let DefaultDateFormat = "E, MMM/dd/yyyy"
+        static let DefaultDateFormat = "E, MM/dd/yyyy"
         
         static let DaysUntilTitleLabelPastActivity = "Days ago"
         

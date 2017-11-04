@@ -42,6 +42,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) {
+        
         let ckquery = CKQueryNotification(fromRemoteNotificationDictionary: userInfo)
 
         if let typeOfRecord = ckquery.recordFields?[Cloud.RecordKeys.RecordType] as? String {

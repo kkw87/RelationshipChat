@@ -181,6 +181,11 @@ class RelationshipViewController: UIViewController {
         tabBarController?.tabBar.items![1].tag = UIApplication.shared.applicationIconBadgeNumber
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+      //  edgesForExtendedLayout = UIRectEdge.all
+    }
+    
     //MARK : - Outlet Methods
     
     

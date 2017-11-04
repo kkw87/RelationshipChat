@@ -123,6 +123,13 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
+    @IBOutlet weak var pageControlContainerView: UIView! {
+        didSet {
+            pageControlContainerView.roundEdges()
+        }
+    }
+    
+    
     // MARK: - PageView Controller Storyboard
     
     lazy var activityViewControllers : [UIViewController] = {
@@ -152,7 +159,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     // MARK: - Page Control Properties
     private lazy var pageControl : UIPageControl = {
         
-        let pageCtrl = UIPageControl(frame: CGRect(x: 0, y: view.bounds.maxY - Constants.PageControlYOffSet * 2, width: view.bounds.width, height: Constants.PageControlYOffSet))
+        
+        //TODO, put the page control above 
+        let pageCtrl = UIPageControl(frame: pageControlContainerView.bounds)
         
         pageCtrl.numberOfPages = activityViewControllers.count
         pageCtrl.currentPage = 0
@@ -168,7 +177,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             if let initialVC = activityViewControllers.first {
                 embeddedVC?.setViewControllers([initialVC], direction: .forward, animated: true, completion: nil)
             }
-            view.addSubview(pageControl)
+            pageControlContainerView.addSubview(pageControl)
             print(pageControl)
         }
     }
@@ -355,6 +364,24 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
+    private var tabBarChatIconBadge : Int? {
+        get {
+            guard let badgeValue = self.tabBarController?.chatBarItem?.badgeValue else {
+                return nil
+            }
+            
+            return Int(badgeValue)
+        } set {
+            
+            guard newValue != nil else {
+                self.tabBarController?.chatBarItem?.badgeValue = nil
+                return
+            }
+            
+            self.tabBarController?.chatBarItem?.badgeValue = String(describing: newValue!)
+        }
+    }
+    
     // MARK: - Relationship request variables
     fileprivate var sendersRecord : CKRecord?
     fileprivate var requestedRelationship : CKRecord?
@@ -366,8 +393,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         addNotificationObserver()
-        let backButton = UIBarButtonItem()
-        backButton.title = "Profile"
+        tabBarChatIconBadge = UIApplication.shared.applicationIconBadgeNumber
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -377,6 +403,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        //Readjust views to undo the reformatting of the chat bar in chat VC
+        //edgesForExtendedLayout = UIRectEdge.all
         if FileManager.default.ubiquityIdentityToken == nil {
             
             let alertController = UIAlertController(title: "Not signed into iCloud", message: "Please sign into your iCloud account", preferredStyle: .alert)
@@ -397,7 +426,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
         
     }
-    
+ 
     //MARK: - Image Picking
     
     
@@ -636,12 +665,17 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.MessageChannel, object: nil, queue: OperationQueue.main) { (_) in
-                guard let stringBadgeValue = self.tabBarController?.chatBarItem?.badgeValue, let currentBadgeValue = Int(stringBadgeValue) else {
-                    self.tabBarController?.chatBarItem?.badgeValue = String(1)
-                return
-            }
-                self.tabBarController?.chatBarItem?.badgeValue = String(currentBadgeValue + 1)
             
+            //Need to make sure that chatVC isn't on screen
+            if (self.tabBarController?.viewControllers as? [UINavigationController])?.map({$0.contentViewController}).filter({$0 is ChatViewController}).first?.view.window == nil {
+                
+                guard self.tabBarChatIconBadge != nil else {
+                    self.tabBarChatIconBadge = 1
+                    return
+                }
+                self.tabBarChatIconBadge! += 1
+                
+            }
         }
     }
     

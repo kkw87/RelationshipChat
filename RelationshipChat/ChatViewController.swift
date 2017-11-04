@@ -19,7 +19,6 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
     //MARK: - Constants
     
     struct Constants {
-        
         static let DefaultTitle = ""
         static let DefaultSenderID = "1"
         static let DefaultSenderDisplayName = " "
@@ -36,7 +35,6 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         static let IncomingChatTextColor = UIColor.black   //Contrasting color
         
         static let SendButtonColor = UIColor.white
-        
     }
     
     struct Storyboard {
@@ -52,19 +50,31 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
     
     //MARK: - Instance Variables
     
-    //Settings for JSQMessages VC
-    let incomingBubble = JSQMessagesBubbleImageFactory().incomingMessagesBubbleImage(with: UIColor.jsq_messageBubbleLightGray())
-    let outgoingBubble = JSQMessagesBubbleImageFactory().outgoingMessagesBubbleImage(with: UIColor.flatPurple())
-    
-    
-    var messages = [JSQMessage]() {
-        didSet {
-            DispatchQueue.main.async {
-                UIApplication.shared.applicationIconBadgeNumber = 0
+    private var chatBarBadgeValue : Int? {
+        get {
+            guard let badgeValue = self.tabBarController?.chatBarItem?.badgeValue else {
+                return nil
             }
             
+            return Int(badgeValue)
+        } set {
+            
+            guard newValue != nil else {
+                self.tabBarController?.chatBarItem?.badgeValue = nil
+                return
+            }
+            
+            self.tabBarController?.chatBarItem?.badgeValue = String(describing: newValue)
         }
     }
+    
+    //Settings for JSQMessages VC
+    private let incomingBubble = JSQMessagesBubbleImageFactory().incomingMessagesBubbleImage(with: UIColor.jsq_messageBubbleLightGray())
+    private let outgoingBubble = JSQMessagesBubbleImageFactory().outgoingMessagesBubbleImage(with: UIColor.flatPurple())
+    
+    
+    private var messages = [JSQMessage]()
+    
     //User typing indicator variables
     var currentRelationship : CKRecord? {
         didSet {
@@ -76,7 +86,6 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
                 tabBarController?.chatBarItem?.isEnabled = false
                 secondaryUser = nil
                 performSegue(withIdentifier: Storyboard.NewRelationshipSegue, sender: nil)
-                
             }
         }
     }
@@ -102,7 +111,7 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         }
     }
     
-    var lastSentMessage : JSQMessage?
+    private var lastSentMessage : JSQMessage?
     
     fileprivate var userIsTyping = false {
         didSet {
@@ -131,16 +140,16 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         addNotificationObservers()
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+    }
+    
     //MARK: - Setup Methods
     fileprivate func setupUI() {
-        self.edgesForExtendedLayout = []
         tabBarController?.tabBar.isTranslucent = false
         //Set default senderID and displayname for JSQMessagesVC so it does not crash
         self.senderId = Constants.DefaultSenderID
         self.senderDisplayName = Constants.DefaultSenderDisplayName
-        
-        //Change color of Send button to make it more visible
-        //self.inputToolbar.contentView.rightBarButtonItem.setTitleColor(Constants.SendButtonColor, for: .normal)
         
         self.collectionView.collectionViewLayout.outgoingAvatarViewSize = CGSize(width: Constants.ChatProfilePictureWidth, height: Constants.ChatProfilePictureHeight)
         self.collectionView.collectionViewLayout.incomingAvatarViewSize = CGSize(width: Constants.ChatProfilePictureWidth, height: Constants.ChatProfilePictureHeight)
@@ -170,7 +179,7 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
     //MARK: - Class Methods
     
     fileprivate func fetchNewMessages() {
-
+        
         let messageSearchPredicate = NSPredicate(format: "relationship = %@", self.currentRelationship!)
         let messageFetchQuery = CKQuery(recordType: Cloud.Entity.Message, predicate: messageSearchPredicate)
         
@@ -192,10 +201,15 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
                 self?.saveCloudMessageToCoreData(newMessage)
             }
             
-            DispatchQueue.main.async {
-                UIApplication.shared.applicationIconBadgeNumber = 0
-                self?.tabBarController?.chatBarItem?.badgeValue = nil
+            //TODO, will be depracated
+            let resetContainerBadgeCountOp = CKModifyBadgeOperation(badgeValue: 0)
+            resetContainerBadgeCountOp.completionBlock = {
+                DispatchQueue.main.async {
+                    UIApplication.shared.applicationIconBadgeNumber = 0
+                    self?.chatBarBadgeValue = nil
+                }
             }
+            CKContainer.default().add(resetContainerBadgeCountOp)
             
         }
     }
@@ -263,11 +277,11 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
                     return
                 }
                 
-                        DispatchQueue.main.async {
-                            self?.currentRelationship = fetchedRelationship!
-                        }
-                        self?.loadSecondaryUser(fromRelationship: fetchedRelationship!)
-                    
+                DispatchQueue.main.async {
+                    self?.currentRelationship = fetchedRelationship!
+                }
+                self?.loadSecondaryUser(fromRelationship: fetchedRelationship!)
+                
                 
             })
             
@@ -291,11 +305,11 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
                     return
                 }
                 
-                    if fetchedUserRecord != nil {
-                        DispatchQueue.main.async {
-                            self?.secondaryUser = fetchedUserRecord
-                        }
+                if fetchedUserRecord != nil {
+                    DispatchQueue.main.async {
+                        self?.secondaryUser = fetchedUserRecord
                     }
+                }
                 
             })
             
@@ -401,21 +415,29 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.TypingIndicatorChannel, object: nil, queue: nil) { [weak self] (notification) in
-            if let typingUpdate = notification.userInfo?[CloudKitNotifications.TypingChannelKey] as? CKQueryNotification {
-                if let typing = typingUpdate.recordFields?[Cloud.UserTypingIndicatorAttributes.TypingStatus] as? String {
-                    DispatchQueue.main.async {
-                        switch typing {
-                        case Cloud.UserTypingStatus.Typing:
-                            self?.showTypingIndicator = true
-                            self?.scrollToBottom(animated: true)
-                        default:
-                            self?.showTypingIndicator = false
-                            self?.scrollToBottom(animated: true)
-                        }
-                    }
-                    Cloud.deleteTypingIndicatorsFrom((self?.currentRelationship)!)
+            
+            //Make sure self is on screen
+            
+            guard self?.view.window != nil, let typingUpdate = notification.userInfo?[CloudKitNotifications.TypingChannelKey] as? CKQueryNotification, let typing = typingUpdate.recordFields?[Cloud.UserTypingIndicatorAttributes.TypingStatus] as? String  else {
+                return
+            }
+            
+            DispatchQueue.main.async {
+                switch typing {
+                case Cloud.UserTypingStatus.Typing:
+                    self?.showTypingIndicator = true
+                    self?.scrollToBottom(animated: true)
+                default:
+                    self?.showTypingIndicator = false
+                    self?.scrollToBottom(animated: true)
                 }
             }
+            
+            if self?.currentRelationship != nil {
+                Cloud.deleteTypingIndicatorsFrom((self?.currentRelationship)!)
+            }
+            
+            
         }
         
     }
@@ -510,27 +532,30 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
             return JSQMessagesAvatarImage(avatarImage: userImage, highlightedImage: userImage, placeholderImage: defaultUserPicture)
         } else {
             
-        
-            var recordIDToFetch : CKRecordID
+            var recordIDToFetch : CKRecordID?
             
             if data.senderId == currentUser?.recordID.recordName {
-                recordIDToFetch = currentUser!.recordID
+                recordIDToFetch = currentUser?.recordID
             } else {
-                recordIDToFetch = secondaryUser!.recordID
+                recordIDToFetch = secondaryUser?.recordID
             }
-
-            Cloud.CloudDatabase.PublicDatabase.fetch(withRecordID: recordIDToFetch, completionHandler: { (fetchedRecord, error) in
-                guard error == nil else {
-                    _ = Cloud.errorHandling(error!, sendingViewController: self)
-                    return
-                }
+            
+            
+            if recordIDToFetch != nil {
                 
-                guard let usersRecord = fetchedRecord, let imageAsset = usersRecord[Cloud.UserAttribute.ProfileImage] as? CKAsset, let convertedImage = imageAsset.convertToImage() else {
-                    return
-                }
-                
-                RCCache.shared[senderID as AnyObject] = convertedImage
-            })
+                Cloud.CloudDatabase.PublicDatabase.fetch(withRecordID: recordIDToFetch!, completionHandler: { (fetchedRecord, error) in
+                    guard error == nil else {
+                        _ = Cloud.errorHandling(error!, sendingViewController: self)
+                        return
+                    }
+                    
+                    guard let usersRecord = fetchedRecord, let imageAsset = usersRecord[Cloud.UserAttribute.ProfileImage] as? CKAsset, let convertedImage = imageAsset.convertToImage() else {
+                        return
+                    }
+                    
+                    RCCache.shared[senderID as AnyObject] = convertedImage
+                })
+            }
         }
         
         return JSQMessagesAvatarImage(avatarImage: defaultUserPicture, highlightedImage: defaultUserPicture, placeholderImage: defaultUserPicture)
@@ -706,7 +731,6 @@ extension ChatViewController {
             
             if messageRecord != nil {
                 DispatchQueue.main.async {
-                    self.messages.append(self.convertCloudMessageToJSQMessage(messageRecord!))
                     self.saveCloudMessageToCoreData(messageRecord!)
                     JSQSystemSoundPlayer.jsq_playMessageReceivedSound()
                     self.finishReceivingMessage()
@@ -748,8 +772,8 @@ extension ChatViewController {
                 }
                 
                 DispatchQueue.main.async {
-                 self.messages = relationshipMessages
-                self.finishReceivingMessage()
+                    self.messages = relationshipMessages
+                    self.finishReceivingMessage()
                 }
             }
         }
@@ -830,7 +854,7 @@ extension ChatViewController {
         messageRequest.predicate = NSPredicate(format : "recordName = %@", message.recordID.recordName)
         
         CoreDataDB.Context.perform {
-
+            
             guard let _ = (try? CoreDataDB.Context.fetch(messageRequest))?.isEmpty else {
                 return
             }
@@ -839,23 +863,23 @@ extension ChatViewController {
                 newMessage.media = UIImagePNGRepresentation(messageMediaPhoto)!
             }
             
-                do {
-                    try CoreDataDB.Context.save()
-                    Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: message.recordID, completionHandler: { [weak self] (deletedRecordID, error) in
-                        guard error == nil else {
-                            _ = Cloud.errorHandling(error!, sendingViewController: self)
-                            return
-                        }
-                        
-                        DispatchQueue.main.async {
-                            self?.messages.append(self!.convertCoreDBMessageToJSQ(newMessage))
-                            self?.finishReceivingMessage()
-                        }
-                        
-                    })
-                } catch {
-                    print(error)
-                }
+            do {
+                try CoreDataDB.Context.save()
+                Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: message.recordID, completionHandler: { [weak self] (deletedRecordID, error) in
+                    guard error == nil else {
+                        _ = Cloud.errorHandling(error!, sendingViewController: self)
+                        return
+                    }
+                    
+                    DispatchQueue.main.async {
+                        self?.messages.append(self!.convertCoreDBMessageToJSQ(newMessage))
+                        self?.finishReceivingMessage()
+                    }
+                    
+                })
+            } catch {
+                print(error)
+            }
         }
     }
     

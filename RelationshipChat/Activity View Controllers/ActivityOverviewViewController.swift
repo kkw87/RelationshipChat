@@ -63,6 +63,13 @@ class ActivityOverviewViewController: UITableViewController {
     
     @IBOutlet weak var saveButton: UIBarButtonItem!
     
+    @IBOutlet weak var addressLabelContainerView: UIView! {
+        didSet {
+            addressLabelContainerView.roundEdges()
+        }
+    }
+    
+    @IBOutlet weak var addressNameLabel: UILabel!
     @IBOutlet weak var addressLabel: UILabel!
     
 
@@ -110,7 +117,8 @@ class ActivityOverviewViewController: UITableViewController {
                 let addressStringTitle = activity![Cloud.RelationshipActivityAttribute.LocationStringName] as! String
                 let addressStringBody = activity![Cloud.RelationshipActivityAttribute.LocationStringAddress] as! String
                 
-                addressLabel?.text = "\(addressStringTitle), \(addressStringBody)"
+                addressNameLabel?.text = addressStringTitle
+                addressLabel?.text = addressStringBody
                 
             } else {
                 newLocationButton?.isEnabled = false
@@ -125,6 +133,14 @@ class ActivityOverviewViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        //Set Button color
+        newLocationButton.backgroundColor = UIColor.darkGray
+        newLocationButton.tintColor = UIColor.white
+        
     }
     
     //MARK: - Class methods
@@ -216,6 +232,26 @@ class ActivityOverviewViewController: UITableViewController {
             }
         }
         
+    }
+    
+    //MARK: - TableView Delegates
+    override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        if activity?[Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+            if indexPath.section == 2 {
+                return 0.0
+            }
+        }
+        return super.tableView(tableView, heightForRowAt: indexPath)
+    }
+    
+    //MARK: - Tableview Datasource
+    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        if activity?[Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+            if section == 2 {
+                return nil
+            }
+        }
+        return super.tableView(tableView, titleForHeaderInSection: section)
     }
     
     // MARK: - Navigation
