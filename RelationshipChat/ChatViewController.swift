@@ -35,6 +35,8 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         static let IncomingChatTextColor = UIColor.black   //Contrasting color
         
         static let SendButtonColor = UIColor.white
+        
+        static let TypingIndicatorShowTime : TimeInterval = 60.0
     }
     
     struct Storyboard {
@@ -142,6 +144,7 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        chatBarBadgeValue = nil
     }
     
     //MARK: - Setup Methods
@@ -201,12 +204,11 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
                 self?.saveCloudMessageToCoreData(newMessage)
             }
             
-            //TODO, will be depracated
+            //TODO, will be deprecated
             let resetContainerBadgeCountOp = CKModifyBadgeOperation(badgeValue: 0)
             resetContainerBadgeCountOp.completionBlock = {
                 DispatchQueue.main.async {
                     UIApplication.shared.applicationIconBadgeNumber = 0
-                    self?.chatBarBadgeValue = nil
                 }
             }
             CKContainer.default().add(resetContainerBadgeCountOp)
@@ -415,9 +417,7 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
         }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.TypingIndicatorChannel, object: nil, queue: nil) { [weak self] (notification) in
-            
-            //Make sure self is on screen
-            
+   
             guard self?.view.window != nil, let typingUpdate = notification.userInfo?[CloudKitNotifications.TypingChannelKey] as? CKQueryNotification, let typing = typingUpdate.recordFields?[Cloud.UserTypingIndicatorAttributes.TypingStatus] as? String  else {
                 return
             }
@@ -426,6 +426,10 @@ class ChatViewController: JSQMessagesViewController, UINavigationControllerDeleg
                 switch typing {
                 case Cloud.UserTypingStatus.Typing:
                     self?.showTypingIndicator = true
+                    Timer.scheduledTimer(withTimeInterval: Constants.TypingIndicatorShowTime, repeats: false) { _ in
+                        self?.showTypingIndicator = false
+                        self?.scrollToBottom(animated: true)
+                    }
                     self?.scrollToBottom(animated: true)
                 default:
                     self?.showTypingIndicator = false

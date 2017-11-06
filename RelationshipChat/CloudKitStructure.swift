@@ -218,7 +218,7 @@ struct Cloud {
                 })
             
             deleteIndicatorDeleteOperation.modifyRecordsCompletionBlock = { (_, _, error) in
-                
+
                 guard error == nil else {
                     _ = Cloud.errorHandling(error!, sendingViewController: nil)
                     print("error deleting typinc indicators")

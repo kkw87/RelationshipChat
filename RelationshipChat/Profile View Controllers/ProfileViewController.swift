@@ -668,7 +668,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             
             //Need to make sure that chatVC isn't on screen
             if (self.tabBarController?.viewControllers as? [UINavigationController])?.map({$0.contentViewController}).filter({$0 is ChatViewController}).first?.view.window == nil {
-                
+
                 guard self.tabBarChatIconBadge != nil else {
                     self.tabBarChatIconBadge = 1
                     return
