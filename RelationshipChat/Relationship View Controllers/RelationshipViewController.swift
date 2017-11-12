@@ -21,6 +21,8 @@ class RelationshipViewController: UIViewController {
         static let RelationshipConfirmationSegueID = "Relationship Confirmation Segue"
         
         static let UserDailyCheckInTableEmbedSegue = "UserLocationEmbedSegue"
+        
+        static let ViewRelationshipWithSegue = "View Relationship Profile"
     }
     
     struct Constants {
@@ -93,7 +95,6 @@ class RelationshipViewController: UIViewController {
             newRelationshipButton.roundEdges()
             newRelationshipButton.clipsToBounds = true
             newRelationshipButton.backgroundColor = UIColor.flatPurple()
-            print(newRelationshipButton.backgroundColor)
         }
     }
     
@@ -136,6 +137,11 @@ class RelationshipViewController: UIViewController {
             if currentUsersRecord != nil {
                 let usersName = Cloud.pullUserInformationFrom(usersRecordToLoad: currentUsersRecord!).usersFirstName
                 embeddedUserDailyCheckIn?.currentUserName = usersName
+                newRelationshipButton.isEnabled = true
+                relationshipWithButton.isEnabled = true
+            } else {
+                newRelationshipButton.isEnabled = false
+                relationshipWithButton.isEnabled = false 
             }
         }
     }
@@ -619,6 +625,11 @@ class RelationshipViewController: UIViewController {
                     embeddedUserDailyCheckIn = userDailyLocations
                     userDailyLocations.presentingView = self.view
                 }
+            case Storyboard.ViewRelationshipWithSegue :
+                if let relationshipWithVC = segue.destination as? RelationshipWithTableViewController {
+                    relationshipWithVC.relationshipWithRecord = secondaryUsersRecord
+                }
+                //TODO, set secondary user's record
             default:
                 break
             }

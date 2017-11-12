@@ -2,6 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
+      location = "group:/Users/kevinwang/Developer/Personal Projects/RelationshipChat/RelationshipChat/Relationship View Controllers/RelationshipWithTableViewController.swift">
+   </FileRef>
+   <FileRef
       location = "group:RelationshipChat.xcodeproj">
    </FileRef>
    <FileRef

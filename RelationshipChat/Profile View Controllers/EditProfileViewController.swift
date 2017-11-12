@@ -23,6 +23,9 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
         
         static let AccountDeletedTitle = "Account Deleted"
         static let AccountDeletedBody = "Your account has been successfully deleted"
+        
+        static let ErrorLoadingProfileAlertTitle = "We couldn't load your profile"
+        static let ErrorLoadingProfileAlertBody = "There was an error in loading your profile information, either it doesn't exist or there was a problem fetching it."
     }
     
     struct Storyboard {
@@ -130,9 +133,14 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
     
     fileprivate func setupUI() {
         
-        deleteProfileButton?.backgroundColor = UIColor.red
+        guard mainUserRecord != nil else {
+            displayAlertWithTitle(Constants.ErrorLoadingProfileAlertTitle, withBodyMessage: Constants.ErrorLoadingProfileAlertBody, withBlock: { (_) in
+                self.presentingViewController?.dismiss(animated: true, completion: nil)
+            })
+            return
+        }
         let usersInfo = Cloud.pullUserInformationFrom(usersRecordToLoad: mainUserRecord!)
-        
+        deleteProfileButton?.backgroundColor = UIColor.red
         firstNameLabel?.text = usersInfo.usersFirstName
         lastNameLabel?.text = usersInfo.usersLastName
         usersImage = usersInfo.usersImage
@@ -251,32 +259,34 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
                 
                 DispatchQueue.main.async {
                     
-                    
                     UIApplication.shared.isNetworkActivityIndicatorVisible = false
                     
                     self?.deleteProfileButton.isEnabled = true
                     self?.saveButton.isEnabled = true
                     self?.navigationItem.leftBarButtonItem?.isEnabled = true
                     
-                    
-                    if error != nil {
-                        _ = _ = Cloud.errorHandling(error!, sendingViewController: nil)
-                    } else {
-                        
-                        if let currentRelationship = self?.mainUserRecord?[Cloud.UserAttribute.Relationship] as? CKReference {
-                            Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: currentRelationship.recordID, completionHandler: { (deletedRecordID, error) in
-                                if error != nil {
-                                    _ = _ = Cloud.errorHandling(error!, sendingViewController: nil)
-                                }
-                            })
-                        }
-                        
-                        self?.displayAlertWithTitle(Constants.AccountDeletedTitle, withBodyMessage: Constants.AccountDeletedBody) { _ in
-                            self?.mainUserRecord = nil
-                            NotificationCenter.default.post(name: CloudKitNotifications.CurrentUserRecordUpdateChannel, object: nil, userInfo: nil)
-                            self?.performSegue(withIdentifier: Storyboard.UnwindBackToProfileSegue, sender: self)
-                        }
+                    guard error == nil else {
+                        _ = Cloud.errorHandling(error!, sendingViewController: nil)
+                        return
                     }
+                    
+                    if let currentRelationship = self?.mainUserRecord?[Cloud.UserAttribute.Relationship] as? CKReference {
+                        Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: currentRelationship.recordID, completionHandler: { (deletedRecordID, error) in
+                            
+                            guard error == nil else {
+                                _ = Cloud.errorHandling(error!, sendingViewController: self)
+                                return
+                            }
+                            
+                            NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)
+                        })
+                    }
+                    
+                    self?.displayAlertWithTitle(Constants.AccountDeletedTitle, withBodyMessage: Constants.AccountDeletedBody) { _ in
+                        self?.mainUserRecord = nil
+                        self?.performSegue(withIdentifier: Storyboard.UnwindBackToProfileSegue, sender: self)
+                    }
+                    
                     
                 }
             })

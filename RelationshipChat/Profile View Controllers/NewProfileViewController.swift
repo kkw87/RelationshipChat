@@ -16,12 +16,19 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         static let LabelCornerRadius = 5
         static let DefaultErrorText = " "
         static let DefaultAlphaColorValue : CGFloat = 0.2
+        
         static let FirstNameErrorText = "You need to enter your first name. "
         static let LastNameErrorText = "You need to enter your last name."
+        
         static let GenderErrorText = "You need to enter your gender."
+        
         static let AlertViewCreationText = "Creating your account..."
         static let AlertViewErrorText = "We were unable to make your account..."
+        
         static let ErrorAlertTitleText = "Oops!"
+        static let UnselectedEULAErrorMessage = "The EULA has to be agreed to."
+        
+        static let ErrorHighlightColor = UIColor.red.withAlphaComponent(Constants.DefaultAlphaColorValue)
     }
     
     //MARK: - Outlets
@@ -29,9 +36,8 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     
     @IBOutlet fileprivate weak var pictureButton: UIButton! {
         didSet {
-            pictureButton.backgroundColor = UIColor.flatPurple()
             pictureButton.clipsToBounds = true
-            pictureButton.setTitleColor(UIColor.white, for: .normal)
+            pictureButton.setTitleColor(UIColor.flatPurple(), for: .normal)
         }
     }
     
@@ -62,6 +68,7 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         }
     }
     
+    @IBOutlet weak var eulaAgreementSegment: UISegmentedControl!
     //MARK: - Instance Variables
     fileprivate var userImage : UIImage? {
         get {
@@ -133,14 +140,19 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         lastNameTextField.resignFirstResponder()
         
         guard firstNameTextField.hasText else {
-            firstNameTextField.backgroundColor = UIColor.red.withAlphaComponent(Constants.DefaultAlphaColorValue)
+            firstNameTextField.backgroundColor = Constants.ErrorHighlightColor
             errorText = Constants.FirstNameErrorText
             return
         }
         
         guard lastNameTextField.hasText else {
-            lastNameTextField.backgroundColor = UIColor.red.withAlphaComponent(Constants.DefaultAlphaColorValue)
+            lastNameTextField.backgroundColor = Constants.ErrorHighlightColor
             errorText = Constants.LastNameErrorText
+            return
+        }
+        
+        guard eulaAgreementSegment.selectedSegmentIndex == 1 else {
+            errorText = Constants.UnselectedEULAErrorMessage
             return
         }
         
@@ -165,6 +177,7 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         Cloud.CloudDatabase.PublicDatabase.save(currentUser) {[weak self] (record, error) in
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                self?.dismiss(animated: true, completion: nil)
             }
             
             guard error == nil else {
@@ -234,7 +247,6 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
             }
             
             if error != nil {
-                print(error!)
                 _ = Cloud.errorHandling(error!, sendingViewController: self)
             }
         }
@@ -263,6 +275,10 @@ extension NewProfileViewController : UIImagePickerControllerDelegate {
 
 
 extension NewProfileViewController : UITextFieldDelegate {
+    
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        textField.backgroundColor = UIColor.white
+    }
     
     func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
         

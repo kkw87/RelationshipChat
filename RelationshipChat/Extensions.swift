@@ -141,6 +141,10 @@ extension UITabBarController {
     var chatBarItem : UITabBarItem? {
         return self.tabBar.items?[1] 
     }
+    
+    var relationshipBarItem : UITabBarItem? {
+        return self.tabBar.items?[2]
+    }
 }
 
 //MARK: - MKPlacemark

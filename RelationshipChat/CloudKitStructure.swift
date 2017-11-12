@@ -23,6 +23,7 @@ struct Cloud {
         static let UserTypingIndicator = "TypingIndicator"
         static let RelationshipActivity = "RelationshipActivity"
         static let UserLocation = "UserLoggedLocation"
+        static let MarkedUser = "MarkedUser"
     }
     
     struct RecordKeys {
@@ -42,6 +43,11 @@ struct Cloud {
     
     
     // MARK: - Entity Attributes
+    
+    struct MarkedUserAttributes {
+        static let MarkedUsersIDReference = "usersReference"
+        static let Reason = "reason"
+    }
     
     struct UserLocationAttribute {
         static let UserName = "usersName"
@@ -144,6 +150,13 @@ struct Cloud {
         static let Married = "Married"
         static let Complicated = "Complicated"
         static let Pending = "Relationship Request Sent"
+    }
+    
+    // MARK: - Flagged User Behavior
+    struct FlaggedUserBehaviors {
+        static let Spam = "Spamming"
+        static let InappropriateComments = "Lude comments"
+        static let Harassment = "Harassment"
     }
     
     // MARK : - Helper Functions

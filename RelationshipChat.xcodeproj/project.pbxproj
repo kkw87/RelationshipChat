@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4823DACA1E9DAE1B004DC2E4 /* MDCSwipeToChoose.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4823DAC91E9DAE1B004DC2E4 /* MDCSwipeToChoose.framework */; };
+		481E68F41FB6864C00F5430D /* RelationshipWithTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481E68F31FB6864C00F5430D /* RelationshipWithTableViewController.swift */; };
 		482BD8FB1EC415F9007F5244 /* NotificationChannelAndKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 482BD8FA1EC415F9007F5244 /* NotificationChannelAndKeys.swift */; };
 		482BD8FD1EC7A9AB007F5244 /* NewActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 482BD8FC1EC7A9AB007F5244 /* NewActivityViewController.swift */; };
 		482FAE571ECB933A004C0C94 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48F7DB051D6E247400E164B7 /* AppDelegate.swift */; };
@@ -37,7 +37,6 @@
 		484628931F440AAB00C92CF5 /* CoreDataDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484628921F440AAB00C92CF5 /* CoreDataDatabase.swift */; };
 		484628971F46845B00C92CF5 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484628961F46845B00C92CF5 /* Message.swift */; };
 		484E6D671F7EFA29008D439D /* MapKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 484E6D661F7EFA29008D439D /* MapKit.framework */; };
-		4853C8EF1EA9A93B00CDE7CE /* ChameleonFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4853C8EE1EA9A93B00CDE7CE /* ChameleonFramework.framework */; };
 		4853C8F11EAC187200CDE7CE /* RelationshipViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4853C8F01EAC187200CDE7CE /* RelationshipViewController.swift */; };
 		4859CCA11F93DED700B1D869 /* ActivityTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4859CCA01F93DED700B1D869 /* ActivityTableViewController.swift */; };
 		48BA42041F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */; };
@@ -46,15 +45,12 @@
 		48CB89A91F017E7F00632672 /* ConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CB89A81F017E7F00632672 /* ConfirmationView.swift */; };
 		48CB89AB1F020D2500632672 /* ImageLabelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CB89AA1F020D2500632672 /* ImageLabelView.swift */; };
 		48CB89AD1F035A7800632672 /* ActivityTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CB89AC1F035A7800632672 /* ActivityTableViewCell.swift */; };
-		48CFCD0E1E95D1120051D8F6 /* JSQMessagesViewController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48CFCD0D1E95D1120051D8F6 /* JSQMessagesViewController.framework */; };
-		48CFCD121E95D1270051D8F6 /* JSQSystemSoundPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48CFCD111E95D1270051D8F6 /* JSQSystemSoundPlayer.framework */; };
-		48CFCD1B1E95D1390051D8F6 /* Pods_RelationshipChat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4907C5B49A2EBF755A4F40C8 /* Pods_RelationshipChat.framework */; };
-		48CFCD1C1E95D1390051D8F6 /* Pods_RelationshipChat.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4907C5B49A2EBF755A4F40C8 /* Pods_RelationshipChat.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		48CFCD1E1E95D16C0051D8F6 /* Photos.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48CFCD1D1E95D16C0051D8F6 /* Photos.framework */; };
 		48CFCD221E95D1D90051D8F6 /* ActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CFCD211E95D1D90051D8F6 /* ActivityView.swift */; };
 		48CFCD241E95D3840051D8F6 /* MessageViewOutgoingCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CFCD231E95D3840051D8F6 /* MessageViewOutgoingCell.swift */; };
 		48F7DB0B1D6E247400E164B7 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 48F7DB091D6E247400E164B7 /* Main.storyboard */; };
 		48F7DB0D1D6E247400E164B7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 48F7DB0C1D6E247400E164B7 /* Assets.xcassets */; };
+		BBCEB3A527034699BF8B094B /* Pods_RelationshipChat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73BD0C6C6E6F82017A87C3CB /* Pods_RelationshipChat.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -64,7 +60,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				48CFCD1C1E95D1390051D8F6 /* Pods_RelationshipChat.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -73,14 +68,9 @@
 
 /* Begin PBXFileReference section */
 		37087814B91C0BE9D737348A /* Pods-RelationshipChat.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RelationshipChat.release.xcconfig"; path = "Pods/Target Support Files/Pods-RelationshipChat/Pods-RelationshipChat.release.xcconfig"; sourceTree = "<group>"; };
-		4823DAC91E9DAE1B004DC2E4 /* MDCSwipeToChoose.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MDCSwipeToChoose.framework; path = "Pods/../build/Debug-iphoneos/MDCSwipeToChoose/MDCSwipeToChoose.framework"; sourceTree = "<group>"; };
+		481E68F31FB6864C00F5430D /* RelationshipWithTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RelationshipWithTableViewController.swift; path = "/Users/kevinwang/Developer/Personal Projects/RelationshipChat/RelationshipChat/Relationship View Controllers/RelationshipWithTableViewController.swift"; sourceTree = "<absolute>"; };
 		482BD8FA1EC415F9007F5244 /* NotificationChannelAndKeys.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationChannelAndKeys.swift; sourceTree = "<group>"; };
 		482BD8FC1EC7A9AB007F5244 /* NewActivityViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NewActivityViewController.swift; sourceTree = "<group>"; };
-		482FAE481ECB8C1C004C0C94 /* ChameleonFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = ChameleonFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		482FAE4B1ECB8D28004C0C94 /* ChameleonFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = ChameleonFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		482FAE4E1ECB8D33004C0C94 /* MDCSwipeToChoose.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = MDCSwipeToChoose.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		482FAE511ECB8D39004C0C94 /* JSQSystemSoundPlayer.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = JSQSystemSoundPlayer.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		482FAE541ECB8D3E004C0C94 /* JSQMessagesViewController.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = JSQMessagesViewController.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		483347B91E95C9AF004AF5BD /* MessageViewIncomingCell.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = MessageViewIncomingCell.xib; sourceTree = "<group>"; };
 		483347BB1E95C9B5004AF5BD /* MessageViewOutgoingCell.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = MessageViewOutgoingCell.xib; sourceTree = "<group>"; };
 		483347BE1E95C9D1004AF5BD /* Cache.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Cache.swift; sourceTree = "<group>"; };
@@ -109,7 +99,6 @@
 		484628921F440AAB00C92CF5 /* CoreDataDatabase.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataDatabase.swift; sourceTree = "<group>"; };
 		484628961F46845B00C92CF5 /* Message.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		484E6D661F7EFA29008D439D /* MapKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MapKit.framework; path = System/Library/Frameworks/MapKit.framework; sourceTree = SDKROOT; };
-		4853C8EE1EA9A93B00CDE7CE /* ChameleonFramework.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ChameleonFramework.framework; path = "Pods/../build/Debug-iphoneos/ChameleonFramework/ChameleonFramework.framework"; sourceTree = "<group>"; };
 		4853C8F01EAC187200CDE7CE /* RelationshipViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RelationshipViewController.swift; sourceTree = "<group>"; };
 		4859CCA01F93DED700B1D869 /* ActivityTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityTableViewController.swift; sourceTree = "<group>"; };
 		48BA42031F4FE9FA00D5FBBC /* UserDailyCheckInTableViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserDailyCheckInTableViewController.swift; sourceTree = "<group>"; };
@@ -118,9 +107,6 @@
 		48CB89A81F017E7F00632672 /* ConfirmationView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConfirmationView.swift; sourceTree = "<group>"; };
 		48CB89AA1F020D2500632672 /* ImageLabelView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ImageLabelView.swift; path = ../ImageLabelView.swift; sourceTree = "<group>"; };
 		48CB89AC1F035A7800632672 /* ActivityTableViewCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActivityTableViewCell.swift; sourceTree = "<group>"; };
-		48CFCD0D1E95D1120051D8F6 /* JSQMessagesViewController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JSQMessagesViewController.framework; path = "Pods/../build/Debug-iphoneos/JSQMessagesViewController/JSQMessagesViewController.framework"; sourceTree = "<group>"; };
-		48CFCD0F1E95D11F0051D8F6 /* IQKeyboardManagerSwift.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IQKeyboardManagerSwift.framework; path = "../../../Library/Developer/Xcode/DerivedData/RelationshipChat-dzrtqtwygvgyeebnxucxyzmpepjf/Build/Products/Debug-iphoneos/IQKeyboardManagerSwift/IQKeyboardManagerSwift.framework"; sourceTree = "<group>"; };
-		48CFCD111E95D1270051D8F6 /* JSQSystemSoundPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JSQSystemSoundPlayer.framework; path = "Pods/../build/Debug-iphoneos/JSQSystemSoundPlayer/JSQSystemSoundPlayer.framework"; sourceTree = "<group>"; };
 		48CFCD1D1E95D16C0051D8F6 /* Photos.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Photos.framework; path = System/Library/Frameworks/Photos.framework; sourceTree = SDKROOT; };
 		48CFCD211E95D1D90051D8F6 /* ActivityView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
 		48CFCD231E95D3840051D8F6 /* MessageViewOutgoingCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageViewOutgoingCell.swift; sourceTree = "<group>"; };
@@ -129,7 +115,7 @@
 		48F7DB051D6E247400E164B7 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		48F7DB0A1D6E247400E164B7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		48F7DB0C1D6E247400E164B7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		4907C5B49A2EBF755A4F40C8 /* Pods_RelationshipChat.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RelationshipChat.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		73BD0C6C6E6F82017A87C3CB /* Pods_RelationshipChat.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RelationshipChat.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEF800602B1472F35FB20191 /* Pods-RelationshipChat.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RelationshipChat.debug.xcconfig"; path = "Pods/Target Support Files/Pods-RelationshipChat/Pods-RelationshipChat.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -138,15 +124,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4853C8EF1EA9A93B00CDE7CE /* ChameleonFramework.framework in Frameworks */,
-				4823DACA1E9DAE1B004DC2E4 /* MDCSwipeToChoose.framework in Frameworks */,
 				48CFCD1E1E95D16C0051D8F6 /* Photos.framework in Frameworks */,
-				48CFCD121E95D1270051D8F6 /* JSQSystemSoundPlayer.framework in Frameworks */,
 				484E6D671F7EFA29008D439D /* MapKit.framework in Frameworks */,
-				48CFCD0E1E95D1120051D8F6 /* JSQMessagesViewController.framework in Frameworks */,
 				483347F01E95CD9C004AF5BD /* Contacts.framework in Frameworks */,
 				483347E11E95CCA6004AF5BD /* CloudKit.framework in Frameworks */,
-				48CFCD1B1E95D1390051D8F6 /* Pods_RelationshipChat.framework in Frameworks */,
+				BBCEB3A527034699BF8B094B /* Pods_RelationshipChat.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -205,15 +187,10 @@
 			isa = PBXGroup;
 			children = (
 				484E6D661F7EFA29008D439D /* MapKit.framework */,
-				4853C8EE1EA9A93B00CDE7CE /* ChameleonFramework.framework */,
-				4823DAC91E9DAE1B004DC2E4 /* MDCSwipeToChoose.framework */,
 				48CFCD1D1E95D16C0051D8F6 /* Photos.framework */,
-				48CFCD111E95D1270051D8F6 /* JSQSystemSoundPlayer.framework */,
-				48CFCD0F1E95D11F0051D8F6 /* IQKeyboardManagerSwift.framework */,
-				48CFCD0D1E95D1120051D8F6 /* JSQMessagesViewController.framework */,
 				483347EF1E95CD9C004AF5BD /* Contacts.framework */,
 				483347E01E95CCA6004AF5BD /* CloudKit.framework */,
-				4907C5B49A2EBF755A4F40C8 /* Pods_RelationshipChat.framework */,
+				73BD0C6C6E6F82017A87C3CB /* Pods_RelationshipChat.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -255,6 +232,7 @@
 		48CE5A9D1F90837000E2434E /* Relationship View Controllers */ = {
 			isa = PBXGroup;
 			children = (
+				481E68F31FB6864C00F5430D /* RelationshipWithTableViewController.swift */,
 				483347DA1E95CA5A004AF5BD /* EditRelationshipViewController.swift */,
 				483347D71E95CA52004AF5BD /* RelationshipConfirmationViewController.swift */,
 				483347CC1E95C9F7004AF5BD /* NewRelationshipViewController.swift */,
@@ -284,11 +262,6 @@
 		48F7DAF91D6E247400E164B7 = {
 			isa = PBXGroup;
 			children = (
-				482FAE541ECB8D3E004C0C94 /* JSQMessagesViewController.framework */,
-				482FAE511ECB8D39004C0C94 /* JSQSystemSoundPlayer.framework */,
-				482FAE4E1ECB8D33004C0C94 /* MDCSwipeToChoose.framework */,
-				482FAE4B1ECB8D28004C0C94 /* ChameleonFramework.framework */,
-				482FAE481ECB8C1C004C0C94 /* ChameleonFramework.framework */,
 				48F7DB041D6E247400E164B7 /* RelationshipChat */,
 				48F7DB031D6E247400E164B7 /* Products */,
 				483347DF1E95CCA6004AF5BD /* Frameworks */,
@@ -505,6 +478,7 @@
 				483347DB1E95CA5A004AF5BD /* EditRelationshipViewController.swift in Sources */,
 				483347D41E95CA38004AF5BD /* RelationshipTableViewCell.swift in Sources */,
 				483347C11E95C9D8004AF5BD /* ChatViewController.swift in Sources */,
+				481E68F41FB6864C00F5430D /* RelationshipWithTableViewController.swift in Sources */,
 				484628681F43A40900C92CF5 /* CoreDataMessageModel.xcdatamodeld in Sources */,
 				4853C8F11EAC187200CDE7CE /* RelationshipViewController.swift in Sources */,
 				484628931F440AAB00C92CF5 /* CoreDataDatabase.swift in Sources */,
@@ -628,6 +602,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
 				MTL_ENABLE_DEBUG_INFO = NO;
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 				VALIDATE_PRODUCT = YES;

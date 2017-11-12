@@ -74,6 +74,8 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
+    @IBOutlet weak var editProfileButton: UIBarButtonItem!
+    
     
     @IBOutlet weak var embedViewContainer: UIView! {
         didSet {
@@ -188,13 +190,10 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         return view
     }()
     
-    fileprivate var relationshipActivities = [RelationshipActivity]() {
+    private var relationshipActivities = [RelationshipActivity]() {
         didSet {
-            
-            //Reset the arrays so there is a double of everything 
             upcomingActivities = []
             pastActivities = []
-            //This is readding everything to the arrays, clear upcoming and past activities
             for activty in relationshipActivities {
                 if activty.daysUntilActivity < 0 {
                     pastActivities.append(activty)
@@ -205,12 +204,12 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
     }
     
-    var upcomingActivities = [RelationshipActivity]() {
+    private var upcomingActivities = [RelationshipActivity]() {
         didSet {
             upcomingActivityVC?.activities = upcomingActivities
         }
     }
-    var pastActivities = [RelationshipActivity]() {
+    private var pastActivities = [RelationshipActivity]() {
         didSet {
             pastActivityVC?.activities = pastActivities
         }
@@ -277,15 +276,19 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     fileprivate var usersRecord : CKRecord? {
         didSet {
-            
             if usersRecord != nil {
                 newProfileButton.isHidden = true
                 let userInfo = Cloud.pullUserInformationFrom(usersRecordToLoad: usersRecord!)
                 userImage = userInfo.usersImage
                 navigationItem.title = userInfo.usersFullName
+                editProfileButton.isEnabled = true
+                tabBarController?.relationshipBarItem?.isEnabled = true
             } else {
                 navigationItem.title = " "
                 newProfileButton.isHidden = false
+                editProfileButton.isEnabled = false
+                relationshipActivities = []
+                tabBarController?.relationshipBarItem?.isEnabled = false
             }
         }
     }
@@ -303,9 +306,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     fileprivate var relationshipRecord : CKRecord? {
         didSet {
-            
             func setupUIForPending() {
                 pageControl.isHidden = true
+                pageControlContainerView.isHidden = true
                 embedViewContainer.isHidden = true
                 notInARelationshipView.isHidden = false
                 tabBarController?.chatBarItem?.isEnabled = false
@@ -317,6 +320,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             
             func setupUIForRelationship() {
                 pageControl.isHidden = false
+                pageControlContainerView.isHidden = true
                 embedViewContainer.isHidden = false
                 tabBarController?.chatBarItem?.isEnabled = true
                 notInARelationshipView.isHidden = true
@@ -334,6 +338,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             
             func setupUIForNoRelationship() {
                 pageControl.isHidden = true
+                pageControlContainerView.isHidden = true 
                 embedViewContainer.isHidden = true
                 daysLabelTitle.text = "You Are"
                 daysLabel.text = Constants.DefaultRelationshipText
@@ -369,11 +374,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             guard let badgeValue = self.tabBarController?.chatBarItem?.badgeValue else {
                 return nil
             }
-            
             return Int(badgeValue)
         } set {
-            
-            guard newValue != nil else {
+            guard newValue != nil, newValue != 0 else {
                 self.tabBarController?.chatBarItem?.badgeValue = nil
                 return
             }
@@ -392,6 +395,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     //MARK: - VC Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        tabBarController?.relationshipBarItem?.isEnabled = false
         addNotificationObserver()
         tabBarChatIconBadge = UIApplication.shared.applicationIconBadgeNumber
     }
@@ -403,9 +407,21 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        if userIsLoggedIntoIcloud() {
+            if usersRecord == nil {
+                pullUsersRecord()
+            } else if relationshipRecord == nil {
+                checkRelationshipRequests()
+            } else if relationshipRecord![Cloud.RelationshipAttribute.Status] as! String == Cloud.RelationshipStatus.Pending {
+                checkRelationshipRequestResponse()
+            }
+        }
         
-        //Readjust views to undo the reformatting of the chat bar in chat VC
-        //edgesForExtendedLayout = UIRectEdge.all
+    }
+    
+    //MARK: - Class Methods
+    fileprivate func userIsLoggedIntoIcloud() -> Bool {
+        
         if FileManager.default.ubiquityIdentityToken == nil {
             
             let alertController = UIAlertController(title: "Not signed into iCloud", message: "Please sign into your iCloud account", preferredStyle: .alert)
@@ -414,20 +430,21 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             }))
             alertController.addAction(UIAlertAction(title: "Cancel", style: .default, handler: nil))
             present(alertController, animated: true, completion: nil)
-            
+            return false
         } else {
-            if usersRecord == nil {
-                pullUsersRecord()
-            }
-            
-            tabBarController?.chatBarItem?.badgeValue = UIApplication.shared.applicationIconBadgeNumber == 0 ? nil : String(UIApplication.shared.applicationIconBadgeNumber)
-            checkRelationshipRequests()
-            checkRelationshipRequestResponse()
+            return true
         }
         
     }
  
-    //MARK: - Image Picking
+    //MARK: - Outlet Actions, New Profile button, change image button
+    
+    
+    @IBAction func createNewProfile(_ sender: Any) {
+        if userIsLoggedIntoIcloud() {
+            performSegue(withIdentifier: Storyboard.NewProfileSegue, sender: self)
+        }
+    }
     
     
     @IBAction func changeImage(_ sender: Any) {
@@ -739,7 +756,6 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                         self?.checkRelationshipRequests()
                         self?.checkRelationshipRequestResponse()
                     }
-                    
                 }
                 
             })
