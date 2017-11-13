@@ -80,8 +80,7 @@ class RelationshipTableViewCell: UITableViewCell {
         } else if clickedUsersRecord?[Cloud.UserAttribute.Relationship] != nil {
             delegate?.displayAlertWithTitle(Constants.DefaultErrorMessageTitle, withBodyMessage: Constants.RequestedUserInARelationshipMessage, completion: nil)
         } else {
-            
-            
+       
             let saveRecordsOperation = CKModifyRecordsOperation()
             saveRecordsOperation.recordsToSave = makeChangesToRecords()
             saveRecordsOperation.savePolicy = .allKeys
@@ -157,7 +156,7 @@ class RelationshipTableViewCell: UITableViewCell {
         
         relationshipRequest[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipRequest as CKRecordValue?
         
-        userRecord?[Cloud.UserAttribute.Relationship] = CKReference(record: newRelationship, action: .none) as CKRecordValue?
+        userRecord![Cloud.UserAttribute.Relationship] = CKReference(record: newRelationship, action: .none) as CKRecordValue?
         
         return [userRecord!, newRelationship, relationshipRequest, usersBirthdayActivity, anniversaryActivity]
     }

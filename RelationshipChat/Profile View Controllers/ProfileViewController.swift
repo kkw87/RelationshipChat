@@ -320,7 +320,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             
             func setupUIForRelationship() {
                 pageControl.isHidden = false
-                pageControlContainerView.isHidden = true
+                pageControlContainerView.isHidden = false
                 embedViewContainer.isHidden = false
                 tabBarController?.chatBarItem?.isEnabled = true
                 notInARelationshipView.isHidden = true
@@ -351,6 +351,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             
             
             if relationshipRecord != nil {
+                
                 switch relationshipRecord![Cloud.RelationshipAttribute.Status] as! String {
                 case Cloud.RelationshipStatus.Pending :
                     DispatchQueue.main.async {

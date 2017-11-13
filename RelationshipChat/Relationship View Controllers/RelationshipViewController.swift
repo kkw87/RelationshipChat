@@ -138,10 +138,8 @@ class RelationshipViewController: UIViewController {
                 let usersName = Cloud.pullUserInformationFrom(usersRecordToLoad: currentUsersRecord!).usersFirstName
                 embeddedUserDailyCheckIn?.currentUserName = usersName
                 newRelationshipButton.isEnabled = true
-                relationshipWithButton.isEnabled = true
             } else {
                 newRelationshipButton.isEnabled = false
-                relationshipWithButton.isEnabled = false 
             }
         }
     }
@@ -151,9 +149,7 @@ class RelationshipViewController: UIViewController {
             if secondaryUsersRecord != nil {
                 let userInfo = Cloud.pullUserInformationFrom(usersRecordToLoad: secondaryUsersRecord!)
                 relationshipWithButton.setImage(userInfo.usersImage, for: .normal)
-                relationshipWithButton.isEnabled = true
             } else {
-                relationshipWithButton.isEnabled = false
                 relationshipWithButton.setImage(UIImage(named: "Dislike Filled-50"), for: .normal)
             }
         }
@@ -258,6 +254,7 @@ class RelationshipViewController: UIViewController {
                 notInRelationshipView.isHidden = false
                 newRelationshipButton.isHidden = true
                 editButton.isEnabled = false
+                relationshipWithButton.isEnabled = false
                 relationshipStatus.text = Constants.BlankMessage
                 relationshipStartDate.text = Constants.PendingStatusMessage
                 tabBarController?.chatBarItem?.isEnabled = false
@@ -270,6 +267,7 @@ class RelationshipViewController: UIViewController {
                 newRelationshipButton.isHidden = true 
                 statusLabel.text = Constants.StatusLabelTextRelationship
                 editButton.isEnabled = true
+                relationshipWithButton.isEnabled = true
                 relationshipStatus.text = relationshipRecord![Cloud.RelationshipAttribute.Status] as? String ?? Constants.DefaultRelationshipStatusMessage
                 
                 relationshipStartDate.text = dateFormatter.string(from: relationshipRecord![Cloud.RelationshipAttribute.StartDate] as? Date ?? Date())
