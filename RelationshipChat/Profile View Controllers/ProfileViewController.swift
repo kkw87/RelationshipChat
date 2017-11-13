@@ -408,6 +408,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        print("called")
         if userIsLoggedIntoIcloud() {
             if usersRecord == nil {
                 pullUsersRecord()
@@ -542,6 +543,14 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     fileprivate func addNotificationObserver() {
         
         //Add notification observer for messages, to update chat tab bar badge
+        
+        NotificationCenter.default.addObserver(forName: Notification.Name.UIApplicationDidBecomeActive, object: nil, queue: nil) { (_) in
+            if self.userIsLoggedIntoIcloud() {
+                if self.usersRecord == nil {
+                    self.pullUsersRecord()
+                }
+            }
+        }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.RelationshipUpdateChannel, object: nil, queue: nil) { [weak self] (notification) in
 
