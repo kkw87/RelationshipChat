@@ -180,7 +180,6 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 embeddedVC?.setViewControllers([initialVC], direction: .forward, animated: true, completion: nil)
             }
             pageControlContainerView.addSubview(pageControl)
-            print(pageControl)
         }
     }
     
@@ -408,7 +407,6 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("called")
         if userIsLoggedIntoIcloud() {
             if usersRecord == nil {
                 pullUsersRecord()
@@ -516,7 +514,6 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 
                 
                 guard let relationResponseStatus = relationshipResponses?.first?[Cloud.RelationshipRequestResponseAttribute.StatusUpdate] as? String else {
-                    print("no relationship response status")
                     return
                 }
                 
