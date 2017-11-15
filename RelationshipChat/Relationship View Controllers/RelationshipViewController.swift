@@ -183,11 +183,6 @@ class RelationshipViewController: UIViewController {
         tabBarController?.tabBar.items![1].tag = UIApplication.shared.applicationIconBadgeNumber
     }
     
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-      //  edgesForExtendedLayout = UIRectEdge.all
-    }
-    
     //MARK : - Outlet Methods
     
     
@@ -239,7 +234,9 @@ class RelationshipViewController: UIViewController {
     
     @IBAction func newRelationship(_ sender: Any) {
         if currentUsersRecord == nil {
-            displayAlertWithTitle("Your profile is still loading!", withBodyMessage: "Try again in a few seconds", withBlock: nil)
+            if loadingView.window == nil {
+                loadUserInformation()
+            }
         } else {
             performSegue(withIdentifier: Storyboard.NewRelationshipSegue, sender: self)
         }
@@ -457,7 +454,7 @@ class RelationshipViewController: UIViewController {
         view.addSubview(loadingView)
         loadingView.updateMessageWith(message: Constants.FindingProfileMessage)
         loadingView.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
-        
+      
         CKContainer.default().fetchUserRecordID {[weak self] (usersRecordID, error) in
             
             guard error == nil, usersRecordID != nil else {
@@ -472,7 +469,9 @@ class RelationshipViewController: UIViewController {
             let predicate = NSPredicate(format: "creatorUserRecordID = %@", usersRecordID!)
             let query = CKQuery(recordType: Cloud.Entity.User, predicate: predicate)
             
-            self?.loadingView.updateMessageWith(message: Constants.DownloadingProfileMessage)
+            DispatchQueue.main.async {
+                self?.loadingView.updateMessageWith(message: Constants.DownloadingProfileMessage)
+            }
             
             Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
                 

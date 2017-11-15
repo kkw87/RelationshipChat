@@ -41,6 +41,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         static let RelationshipRecordDeletedTitle = "Your relationship no longer exists"
         static let RelationshipRecordDeletedBody = "Your relationship was ended or your request was denied"
         
+        static let ProfileRecordDeletedTitle = "Your profile can no longer found"
+        static let ProfileRecordDeletedBody = "Your profile was deleted or can not be found, please create a new one"
+        
         static var DefaultUserPicture : UIImage = {
             let picture = UIImage(named: "DefaultPicture")
             return picture!
@@ -412,7 +415,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 pullUsersRecord()
             } else if relationshipRecord == nil {
                 checkRelationshipRequests()
-            } else if relationshipRecord![Cloud.RelationshipAttribute.Status] as! String == Cloud.RelationshipStatus.Pending {
+            } else if relationshipRecord?[Cloud.RelationshipAttribute.Status] as! String == Cloud.RelationshipStatus.Pending {
                 checkRelationshipRequestResponse()
             }
         }
@@ -538,9 +541,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     // MARK: - Notification Observers
     fileprivate func addNotificationObserver() {
-        
-        //Add notification observer for messages, to update chat tab bar badge
-        
+
         NotificationCenter.default.addObserver(forName: Notification.Name.UIApplicationDidBecomeActive, object: nil, queue: nil) { (_) in
             if self.userIsLoggedIntoIcloud() {
                 if self.usersRecord == nil {
@@ -705,8 +706,8 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     // MARK: - User Record functions
     fileprivate func pullUsersRecord() {
+        
         DispatchQueue.main.async {
-            
             self.view.addSubview(self.loadingView)
             self.loadingView.center = self.view.center
             self.loadingView.updateMessageWith(message: Constants.FindingProfileMessage)
@@ -714,6 +715,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         }
         
         CKContainer.default().fetchUserRecordID { [weak self] (userRecordID, error) in
+            
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
             }
@@ -736,12 +738,23 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: {(records, error) in
                 DispatchQueue.main.async {
                     UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    
+                    
                 }
+
                 guard error == nil else {
                     DispatchQueue.main.async {
                         self?.loadingView.removeFromSuperview()
                     }
-                    _ = Cloud.errorHandling(error!, sendingViewController: self)
+                    
+                    if error!._code == 11 || error!._code == CKError.unknownItem.rawValue {
+                        self?.performSegue(withIdentifier: Storyboard.NewProfileSegue, sender: self)
+                    } else {
+                        DispatchQueue.main.async {
+                            _ = Cloud.errorHandling(error!, sendingViewController: self)
+                        }
+                    }
+                    
                     return
                 }
                 
@@ -784,12 +797,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
             }
             guard error == nil else {
-                DispatchQueue.main.async {
-                    self?.loadingView.removeFromSuperview()
-                }
-                _ = Cloud.errorHandling(error!, sendingViewController: self)
-
-                if error!._code == 11 {
+                if error!._code == 11 || error!._code == CKError.unknownItem.rawValue {
                     self?.usersRecord![Cloud.UserAttribute.Relationship] = nil
                     self?.relationshipRecord = nil
                     Cloud.CloudDatabase.PublicDatabase.save(self!.usersRecord!) {
@@ -801,7 +809,14 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                         self?.displayAlertWithTitle(Constants.RelationshipRecordDeletedTitle, withBodyMessage: Constants.RelationshipRecordDeletedBody, withBlock: nil)
                         
                     }
+                } else {
+                    DispatchQueue.main.async {
+                        self?.loadingView.removeFromSuperview()
+                        _ = Cloud.errorHandling(error!, sendingViewController: self)
+                    }
                 }
+                
+                //Check for the unknown case
                 return
             }
             

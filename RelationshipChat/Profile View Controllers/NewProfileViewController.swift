@@ -28,6 +28,8 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         static let ErrorAlertTitleText = "Oops!"
         static let UnselectedEULAErrorMessage = "The EULA has to be agreed to."
         
+        static let ProfileCreationError = "We were unable to create your profile"
+        
         static let ErrorHighlightColor = UIColor.red.withAlphaComponent(Constants.DefaultAlphaColorValue)
     }
     
@@ -177,11 +179,12 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         Cloud.CloudDatabase.PublicDatabase.save(currentUser) {[weak self] (record, error) in
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                self?.loadingView.removeFromSuperview()
                 self?.dismiss(animated: true, completion: nil)
             }
             
             guard error == nil else {
-                _ = Cloud.errorHandling(error!, sendingViewController: nil)
+                self?.displayAlertWithTitle(Constants.ProfileCreationError, withBodyMessage: error!.localizedDescription, withBlock: nil)
                 return
             }
             
