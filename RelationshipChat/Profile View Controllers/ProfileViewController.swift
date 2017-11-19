@@ -71,21 +71,12 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     @IBOutlet weak var viewDivider: UIView!
     
-    @IBOutlet weak var notInARelationshipView: UIView! {
-        didSet {
-            notInARelationshipView.roundEdges()
-        }
-    }
+    @IBOutlet weak var notInARelationshipView: UIView!
     
     @IBOutlet weak var editProfileButton: UIBarButtonItem!
     
     
-    @IBOutlet weak var embedViewContainer: UIView! {
-        didSet {
-            embedViewContainer.roundEdges()
-            embedViewContainer.clipsToBounds = true 
-        }
-    }
+    @IBOutlet weak var embedViewContainer: UIView! 
     
     @IBOutlet weak var changedImageButton: UIButton!
     
@@ -921,6 +912,15 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     }
     
     //MARK: - Navigation
+    
+    @IBAction func newProfileCreated(segue : UIStoryboardSegue) {
+        if let npv = segue.source as? NewProfileViewController {
+            if let createdUserRecord = npv.userRecord {
+                self.usersRecord = createdUserRecord
+            }
+        }
+    }
+    
     @IBAction func unwindFromNewProfile(segue : UIStoryboardSegue) {
         if let evc = segue.source as? EditProfileViewController {
             DispatchQueue.main.async {

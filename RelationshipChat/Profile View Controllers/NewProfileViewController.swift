@@ -33,6 +33,10 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         static let ErrorHighlightColor = UIColor.red.withAlphaComponent(Constants.DefaultAlphaColorValue)
     }
     
+    struct Storyboard {
+        static let ProfileUnwindSegue = "Unwind to profile"
+    }
+    
     //MARK: - Outlets
     
     
@@ -104,6 +108,8 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     }
     
     fileprivate var loadingView = ActivityView(withMessage: "")
+    
+    var userRecord : CKRecord?
     
     //MARK: - VC Lifecycle
     
@@ -189,8 +195,11 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
             }
             
             self?.setupSubscriptions(record!)
-            NotificationCenter.default.post(name: CloudKitNotifications.CurrentUserRecordUpdateChannel, object: nil, userInfo: [CloudKitNotifications.CurrentUserRecordUpdateKey : currentUser])
+            self?.userRecord = record
             
+            DispatchQueue.main.async {
+                self?.performSegue(withIdentifier: Storyboard.ProfileUnwindSegue, sender: self)
+            }
         }
     }
     
