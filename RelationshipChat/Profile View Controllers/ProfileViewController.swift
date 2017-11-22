@@ -161,9 +161,9 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
         
         pageCtrl.numberOfPages = activityViewControllers.count
         pageCtrl.currentPage = 0
-        pageCtrl.tintColor = UIColor.flatPurple()
+        pageCtrl.tintColor = UIColor.white
         pageCtrl.pageIndicatorTintColor = UIColor.gray
-        pageCtrl.currentPageIndicatorTintColor = UIColor.flatPurple()
+        pageCtrl.currentPageIndicatorTintColor = UIColor.white
         pageCtrl.isUserInteractionEnabled = false
         return pageCtrl
     }()
@@ -401,43 +401,37 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        if userIsLoggedIntoIcloud() {
-            if usersRecord == nil {
-                pullUsersRecord()
-            } else if relationshipRecord == nil {
-                checkRelationshipRequests()
-            } else if relationshipRecord?[Cloud.RelationshipAttribute.Status] as! String == Cloud.RelationshipStatus.Pending {
-                checkRelationshipRequestResponse()
-            }
+        
+        guard Cloud.userIsLoggedIntoIcloud() else {
+            present(Cloud.notLoggedIntoCloudVC, animated: true, completion: nil)
+            
+            return
         }
+        
+        if usersRecord == nil {
+            pullUsersRecord()
+        } else if relationshipRecord == nil {
+            checkRelationshipRequests()
+        } else if relationshipRecord?[Cloud.RelationshipAttribute.Status] as! String == Cloud.RelationshipStatus.Pending {
+            checkRelationshipRequestResponse()
+        }
+        
         
     }
     
-    //MARK: - Class Methods
-    fileprivate func userIsLoggedIntoIcloud() -> Bool {
-        
-        if FileManager.default.ubiquityIdentityToken == nil {
-            
-            let alertController = UIAlertController(title: "Not signed into iCloud", message: "Please sign into your iCloud account", preferredStyle: .alert)
-            alertController.addAction(UIAlertAction(title: "Settings", style: .default, handler: { (action) in
-                UIApplication.shared.open(URL(string: "App-Prefs:root=CASTLE")!, options: [:], completionHandler: nil)
-            }))
-            alertController.addAction(UIAlertAction(title: "Cancel", style: .default, handler: nil))
-            present(alertController, animated: true, completion: nil)
-            return false
-        } else {
-            return true
-        }
-        
-    }
- 
+    
     //MARK: - Outlet Actions, New Profile button, change image button
     
     
     @IBAction func createNewProfile(_ sender: Any) {
-        if userIsLoggedIntoIcloud() {
-            performSegue(withIdentifier: Storyboard.NewProfileSegue, sender: self)
+        
+        guard Cloud.userIsLoggedIntoIcloud() else {
+            present(Cloud.notLoggedIntoCloudVC, animated: true, completion: nil)
+            
+            return
         }
+        performSegue(withIdentifier: Storyboard.NewProfileSegue, sender: self)
+        
     }
     
     
@@ -532,17 +526,22 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
     
     // MARK: - Notification Observers
     fileprivate func addNotificationObserver() {
-
+        
         NotificationCenter.default.addObserver(forName: Notification.Name.UIApplicationDidBecomeActive, object: nil, queue: nil) { (_) in
-            if self.userIsLoggedIntoIcloud() {
-                if self.usersRecord == nil {
-                    self.pullUsersRecord()
-                }
+            
+            guard Cloud.userIsLoggedIntoIcloud() else {
+                self.present(Cloud.notLoggedIntoCloudVC, animated: true, completion: nil)
+                return
             }
+            
+            if self.usersRecord == nil {
+                self.pullUsersRecord()
+            }
+            
         }
         
         NotificationCenter.default.addObserver(forName: CloudKitNotifications.RelationshipUpdateChannel, object: nil, queue: nil) { [weak self] (notification) in
-
+            
             if let updatedRelationship = notification.userInfo?[CloudKitNotifications.RelationshipUpdateKey] as? CKQueryNotification {
                 
                 DispatchQueue.main.async {
@@ -557,10 +556,10 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                         _ = Cloud.errorHandling(error!, sendingViewController: self)
                         return
                     }
-        
-                        DispatchQueue.main.async {
-                            weakSelf?.relationshipRecord = newRelationship!
-                        }
+                    
+                    DispatchQueue.main.async {
+                        weakSelf?.relationshipRecord = newRelationship!
+                    }
                     
                 })
             } else if let newRelationship = notification.userInfo?[CloudKitNotifications.RelationshipUpdateKey] as? CKRecord {
@@ -684,7 +683,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
             
             //Need to make sure that chatVC isn't on screen
             if (self.tabBarController?.viewControllers as? [UINavigationController])?.map({$0.contentViewController}).filter({$0 is ChatViewController}).first?.view.window == nil {
-
+                
                 guard self.tabBarChatIconBadge != nil else {
                     self.tabBarChatIconBadge = 1
                     return
@@ -732,7 +731,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     
                     
                 }
-
+                
                 guard error == nil else {
                     DispatchQueue.main.async {
                         self?.loadingView.removeFromSuperview()
@@ -878,7 +877,7 @@ class ProfileViewController: UIViewController, UINavigationControllerDelegate {
                     print("error fetching updated relationship")
                     return
                 }
-
+                
                 self?.relationshipRecord = newRelationship
                 
             })
@@ -1130,7 +1129,7 @@ extension ProfileViewController : ActivityTableViewControllerDataSource {
         
         DispatchQueue.main.async {
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
-
+            
         }
         //save new activity and relationship
         
@@ -1140,7 +1139,7 @@ extension ProfileViewController : ActivityTableViewControllerDataSource {
             
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
-
+                
             }
             guard $2 == nil else {
                 _ = Cloud.errorHandling($2!, sendingViewController: nil)
@@ -1150,7 +1149,7 @@ extension ProfileViewController : ActivityTableViewControllerDataSource {
             
             let savedActivity = $0?.filter { ($0[Cloud.RecordKeys.RecordType] as? String) == Cloud.Entity.RelationshipActivity }.first
             completionHandler?(true, nil)
-
+            
             self?.relationshipActivities.append(self!.convertRecordsToActivities(records: [savedActivity!]).first!)
         }
         

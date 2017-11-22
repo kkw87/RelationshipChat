@@ -159,6 +159,19 @@ struct Cloud {
         static let Harassment = "Harassment"
     }
     
+    // MARK : - Properties
+    
+    static var notLoggedIntoCloudVC : UIAlertController = {
+        
+        let alertController = UIAlertController(title: "Not signed into iCloud", message: "Please sign into your iCloud account", preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "Settings", style: .default, handler: { (action) in
+            UIApplication.shared.open(URL(string: "App-Prefs:root=CASTLE")!, options: [:], completionHandler: nil)
+        }))
+        alertController.addAction(UIAlertAction(title: "Cancel", style: .default, handler: nil))
+        
+        return alertController
+    }()
+    
     // MARK : - Helper Functions
     @available(iOS 10.0, *)
     static func saveMessageSubscription(_ messageRelationship : CKRecord, currentUser user : CKRecord) {
@@ -327,6 +340,16 @@ struct Cloud {
             sendingViewController?.displayAlertWithTitle("Error!", withBodyMessage: error.localizedDescription, withBlock: nil)
             return nil
         }
+    }
+    
+    static func userIsLoggedIntoIcloud() -> Bool {
+        
+        if FileManager.default.ubiquityIdentityToken == nil {
+            return false
+        } else {
+            return true
+        }
+        
     }
     
     @available(iOS 10.0, *)

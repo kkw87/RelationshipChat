@@ -143,7 +143,6 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     
     @available(iOS 10.0, *)
     @IBAction fileprivate func createNewProfile(_ sender: AnyObject) {
-        
         firstNameTextField.resignFirstResponder()
         lastNameTextField.resignFirstResponder()
         
@@ -163,6 +162,13 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
             errorText = Constants.UnselectedEULAErrorMessage
             return
         }
+        
+        
+        guard Cloud.userIsLoggedIntoIcloud() else {
+            present(Cloud.notLoggedIntoCloudVC, animated: true, completion: nil)
+            return
+        }
+        
         
         let currentUser = CKRecord(recordType : Cloud.Entity.User)
         currentUser[Cloud.UserAttribute.FirstName] = firstNameTextField.text! as CKRecordValue?
@@ -186,7 +192,6 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
                 self?.loadingView.removeFromSuperview()
-                self?.dismiss(animated: true, completion: nil)
             }
             
             guard error == nil else {
