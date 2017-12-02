@@ -22,7 +22,7 @@ class NewRelationshipViewController: UITableViewController {
     // MARK: - Constants
     struct Constants {
         static let NoUsersAlertTitle = "Unable to find any users"
-        static let NoUsersAlertMessage = "We were unable to find any users in your contacts with the app installed."
+        static let NoUsersAlertMessage = "We were unable to find any users in your contacts with the app installed. Please make sure their iCloud email is added under their contact information."
     }
     
     struct Storyboard {
@@ -96,8 +96,6 @@ class NewRelationshipViewController: UITableViewController {
                         return
                     }
                     
-                    
-                    
                     guard (self?.cloudUsersID.count)! > 0 else {
                         DispatchQueue.main.async {
                             self?.displayAlertWithTitle(Constants.NoUsersAlertTitle, withBodyMessage: Constants.NoUsersAlertMessage, withBlock: nil)
@@ -124,6 +122,8 @@ class NewRelationshipViewController: UITableViewController {
                             }
                             
                             guard let userWithAccount = fetchedAccounts?.first, userWithAccount.recordID != self?.userRecord?.recordID else {
+                                //Need another error message that states no users with records
+                                self?.displayAlertWithTitle(Constants.NoUsersAlertTitle, withBodyMessage: Constants.NoUsersAlertMessage, withBlock: nil)
                                 return
                             }
                             
