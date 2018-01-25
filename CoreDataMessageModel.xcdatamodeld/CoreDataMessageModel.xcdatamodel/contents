@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="13240" systemVersion="" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="13772" systemVersion="17C205" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Message" representedClassName=".Message" syncable="YES" codeGenerationType="category">
         <attribute name="created" optional="YES" attributeType="Date" usesScalarValueType="NO" syncable="YES"/>
-        <attribute name="media" optional="YES" attributeType="Binary" syncable="YES"/>
-        <attribute name="recordName" optional="YES" attributeType="String" syncable="YES"/>
-        <attribute name="relationship" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="image" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="imageName" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="messageUID" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="receivingUserUID" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="relationshipUID" optional="YES" attributeType="String" syncable="YES"/>
         <attribute name="senderDisplayName" optional="YES" attributeType="String" syncable="YES"/>
-        <attribute name="senderID" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="senderUID" optional="YES" attributeType="String" syncable="YES"/>
         <attribute name="text" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="video" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="videoDownloadURL" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="videoName" optional="YES" attributeType="String" syncable="YES"/>
     </entity>
     <elements>
-        <element name="Message" positionX="-63" positionY="-18" width="128" height="150"/>
+        <element name="Message" positionX="-63" positionY="-18" width="128" height="225"/>
     </elements>
 </model>

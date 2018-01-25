@@ -7,12 +7,12 @@
 //
 
 import UIKit
-//import Contacts
-import CloudKit
+import Firebase
 
 protocol RelationshipCellDelegate : class {
     func displayAlertWithTitle(_ titleMessage : String, withBodyMessage : String, completion: ((UIAlertAction)->Void)? )
     func presentViewController(_ viewControllerToPresent : UIViewController)
+    
     func popBackToRoot()
 }
 
@@ -22,35 +22,30 @@ class NewRelationshipViewController: UITableViewController {
     // MARK: - Constants
     struct Constants {
         static let NoUsersAlertTitle = "Unable to find any users"
-        static let NoUsersAlertMessage = "We were unable to find any users in your contacts with the app installed. Please make sure their iCloud email is added under their contact information."
+        static let NoUsersAlertMessage = "We were unable to find any users that are not in a relationship with the current search name."
+        
+        static let TextFieldPlaceHolder = "Search for users"
     }
     
     struct Storyboard {
         static let cellID = "Relationship Cell"
     }
+    
+
     // MARK: - Instance variables
     
-    fileprivate var contactsWithApp = [CKRecord]() {
-        didSet {
-            tableView.reloadData()
-        }
-    }
+    fileprivate var usersFromSearch = [RelationshipChatUser]()
     
-    fileprivate var cloudUsersID = [CKRecordID]()
+    var currentUser : RelationshipChatUser?
     
-    fileprivate let store = CNContactStore()
-    
-    var userRecord : CKRecord? {
-        didSet {
-            tableView.reloadData()
-        }
-    }
+    private var userSearchController : UISearchController?
     
     // MARK: - VC Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        loadContacts()
         hideEmptyCells()
+        setupSearchBar()
+        
     }
     // MARK: - Class Methods
     
@@ -59,98 +54,21 @@ class NewRelationshipViewController: UITableViewController {
         presentingViewController?.dismiss(animated: true, completion: nil)
     }
     
-    fileprivate func loadContacts() {
+    private func setupSearchBar() {
+        userSearchController = UISearchController(searchResultsController: nil)
+        userSearchController?.searchResultsUpdater = self
+        userSearchController?.searchBar.tintColor = UIColor.white
         
-        CKContainer.default().requestApplicationPermission(.userDiscoverability) { (status, error) in
-            
-            guard error == nil else {
-                _ = Cloud.errorHandling(error!, sendingViewController: self)
-                return
-            }
-            
-            switch status {
-            case .denied:
-                let deniedAlert = UIAlertController(title: "Unable to discover users", message: "Access to contacts was denied", preferredStyle: .alert)
-                deniedAlert.addAction(UIAlertAction(title: "Done", style: .default, handler: nil))
-                
-                DispatchQueue.main.async {
-                    self.present(deniedAlert, animated: true, completion: nil)
-                }
-            case .granted:
-                
-                DispatchQueue.main.async {
-                    UIApplication.shared.isNetworkActivityIndicatorVisible = true
-                }
-                let cloudDiscover = CKDiscoverAllUserIdentitiesOperation()
-                cloudDiscover.queuePriority = .high
-                
-                cloudDiscover.discoverAllUserIdentitiesCompletionBlock = { [weak self] error -> Void in
-                    DispatchQueue.main.async {
-                        UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                        
-                    }
-                    
-                    guard error == nil else{
-                        print(error!)
-                        _ = Cloud.errorHandling(error!, sendingViewController: self)
-                        return
-                    }
-                    
-                    guard (self?.cloudUsersID.count)! > 0 else {
-                        DispatchQueue.main.async {
-                            self?.displayAlertWithTitle(Constants.NoUsersAlertTitle, withBodyMessage: Constants.NoUsersAlertMessage, withBlock: nil)
-                        }
-                        return
-                    }
-                    
-                    for recordID in (self?.cloudUsersID)! {
-                        
-                        let predicate = NSPredicate(format: "creatorUserRecordID = %@", recordID)
-                        let query = CKQuery(recordType: Cloud.Entity.User, predicate: predicate)
-                        
-                        DispatchQueue.main.async {
-                            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-                        }
-                        Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: { (fetchedAccounts, error) in
-                            DispatchQueue.main.async {
-                                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                            }
-                            
-                            guard error == nil else {
-                                _ = Cloud.errorHandling(error!, sendingViewController: self)
-                                return
-                            }
-                            
-                            guard let userWithAccount = fetchedAccounts?.first, userWithAccount.recordID != self?.userRecord?.recordID else {
-                                //Need another error message that states no users with records
-                                self?.displayAlertWithTitle(Constants.NoUsersAlertTitle, withBodyMessage: Constants.NoUsersAlertMessage, withBlock: nil)
-                                return
-                            }
-                            
-                            DispatchQueue.main.async {
-                                self?.contactsWithApp.append(userWithAccount)
-                                self?.tableView.reloadData()
-                            }
-                        })
-                    }
-                }
-                
-                cloudDiscover.userIdentityDiscoveredBlock = { [weak weakSelf = self] user -> Void in
-                    if user.hasiCloudAccount {
-                        if user.userRecordID != weakSelf?.userRecord?.creatorUserRecordID {
-                            weakSelf?.cloudUsersID.append(user.userRecordID!)
-                        }
-                    }
-                }
-                CKContainer.default().add(cloudDiscover)
-                
-            default : break
-            }
-            
-        }
+        let textField = userSearchController?.searchBar.value(forKey: "searchField") as! UITextField
+        textField.borderStyle = .none
+        textField.placeholder = Constants.TextFieldPlaceHolder
+        textField.backgroundColor = UIColor.white
         
+        navigationItem.searchController = userSearchController
+        navigationItem.hidesSearchBarWhenScrolling = false
+        userSearchController?.hidesNavigationBarDuringPresentation = false
+        definesPresentationContext = true
     }
-    
     
     // MARK: - Table view data source
     
@@ -161,16 +79,15 @@ class NewRelationshipViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return contactsWithApp.count
+        return usersFromSearch.count
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: Storyboard.cellID, for: indexPath) as! RelationshipTableViewCell
         
-        cell.userRecord = userRecord
-        
-        cell.clickedUsersRecord = contactsWithApp[indexPath.row]
+        cell.selectedUser = usersFromSearch[indexPath.row]
+        cell.currentUser = currentUser
         cell.delegate = self
         
         return cell
@@ -189,6 +106,34 @@ extension NewRelationshipViewController : RelationshipCellDelegate {
     }
     
     func popBackToRoot() {
-        self.navigationController?.popToRootViewController(animated: true)
+        dismiss(animated: true) {
+            self.navigationController?.popToRootViewController(animated: true)
+        }
     }
 }
+
+extension NewRelationshipViewController : UISearchResultsUpdating {
+    func updateSearchResults(for searchController: UISearchController) {
+        
+        let searchText = searchController.searchBar.text!
+        
+        FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).queryOrdered(byChild: RelationshipChatUserKeys.FullName).queryEqual(toValue: searchText).observeSingleEvent(of: .value) { [weak self](fetchedUsers) in
+            
+            for downloadedChild in fetchedUsers.children {
+                let snapshot = downloadedChild as! DataSnapshot
+                let valueDictionary = snapshot.value as! [String : Any]
+
+                guard snapshot.key != self?.currentUser?.userUID!, valueDictionary[RelationshipChatUserKeys.RelationshipKey] == nil else {
+                    return
+                }
+                
+                //Make new user from information
+                let userFromSearch = RelationshipChatUser.makeUserWithValues(userValues: valueDictionary, snapshotKey: snapshot.key)
+                self?.usersFromSearch.append(userFromSearch)
+                self?.tableView.reloadData()
+            }
+            
+        }
+    }
+}
+

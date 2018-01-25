@@ -7,11 +7,11 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 import MapKit
 
 protocol LocationDataSource {
-    func delete(location : CKRecord)
+    func delete(locationUID : String)
 }
 
 class UserDailyCheckInByDayTableViewController: UITableViewController {
@@ -28,7 +28,7 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
     }
     
     //MARK : - Model
-    var userLocations : [CKRecord]? {
+    var userLocations : [RelationshipChatLocation]? {
         didSet {
             if userLocations?.count == 0 {
                 DispatchQueue.main.async {
@@ -36,7 +36,7 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
                 }
             } else {
                 userLocations?.sort {
-                    $0.creationDate! < $1.creationDate!
+                    $0.creationDate < $1.creationDate
                 }
                 
                 DispatchQueue.main.async {
@@ -77,8 +77,8 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
         
         let currentLocation = userLocations![indexPath.row]
         
-        let locationStringName = currentLocation[Cloud.UserLocationAttribute.LocationStringName] as! String
-        let locationCreatorName = currentLocation[Cloud.UserLocationAttribute.UserName] as! String
+        let locationStringName = currentLocation.locationName
+        let locationCreatorName = currentLocation.creatingUserName
         
         cell.textLabel?.text = locationStringName
         cell.detailTextLabel?.text = locationCreatorName
@@ -91,8 +91,8 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
         let deleteAction = UIContextualAction(style: .destructive, title: Constants.SwipeToDeleteText) { [weak self] (action, view, completionHandler) in
             
             
-            if let recordToDelete = self?.userLocations?[indexPath.row] {
-                self?.updateRelationshipWithDeleted(record: recordToDelete)
+            if let locationToDelete = self?.userLocations?[indexPath.row] {
+                self?.updateRelationshipWithDeleted(location: locationToDelete)
                 completionHandler(true)
             } else {
                 //Print, some kind of alert to the user
@@ -117,10 +117,10 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
             case Storyboard.DetailSegue:
                 if let detailTV = segue.destination as? UserDailyCheckInDetailViewController {
                     let indexPath = tableView.indexPath(for: sender as! UITableViewCell)!
-                    let selectedRecord = userLocations![indexPath.row]
-                    let locationCreatorName = selectedRecord[Cloud.UserLocationAttribute.UserName] as! String
+                    let selectedLocation = userLocations![indexPath.row]
+                    let locationCreatorName = selectedLocation.creatingUserName
                     detailTV.navigationItem.title = locationCreatorName
-                    detailTV.locationRecord = selectedRecord
+                    detailTV.location = selectedLocation
                 }
             default:
                 break
@@ -128,29 +128,28 @@ class UserDailyCheckInByDayTableViewController: UITableViewController {
         }
     }
     
-    //Commented out to stop swipe to delete from CheckInDetail
-//    @IBAction func unwindFromDetailTableViewController(segue : UIStoryboardSegue) {
-//
-//        guard let sourceVC = segue.source as? UserDailyCheckInDetailTableViewController, let deletedRecordFromSegue = sourceVC.locationRecord else {
-//            print("there was a problem deleting the location from unwind")
-//            return
-//        }
-//
-//        DispatchQueue.main.async {
-//            self.userLocations = self.userLocations?.filter {
-//                $0.recordID != deletedRecordFromSegue.recordID
-//            }
-//        }
-//    }
-//
     //MARK: - Class Methods
-    fileprivate func updateRelationshipWithDeleted(record : CKRecord) {
+    fileprivate func updateRelationshipWithDeleted(location : RelationshipChatLocation) {
         DispatchQueue.main.async {
-            self.userLocations = self.userLocations?.filter {
-                $0.recordID != record.recordID
-            }
+            
+            RelationshipChatLocation.deleteLocationFromDB(withUID: location.uid, completionHandler: { (error) in
+                guard error == nil else {
+                    print(error!)
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    self.userLocations = self.userLocations?.filter {
+                        $0.uid != location.uid
+                    }
+                    
+                    self.tableView.reloadData()
+                    
+                }
+            })
+            
         }
-        dataSource?.delete(location: record)
+
     }
     
 }

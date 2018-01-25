@@ -8,6 +8,20 @@
 
 import Foundation
 
+struct NotificationChannelsAndKeys {
+    
+    static let UserUpdateChannel = NSNotification.Name(rawValue: "UserUpdateChannel")
+    static let UserUpdateKey = "UserUpdateKey"
+    
+    static let SecondaryUserUpdateChannel = NSNotification.Name(rawValue: "SecondaryUserUpdateChannel")
+    static let SecondaryUserUpdateKey = "SecondaryUserUpdateKey"
+    
+    static let RelationshipUpdateChannel = NSNotification.Name(rawValue: "RelationshipUpdateChannel")
+    static let RelationshipUdpateKey = "RelationshipUpdateKey"
+    
+    
+}
+
 struct CloudKitNotifications {
     
     static let RelationshipRequestChannel = NSNotification.Name(rawValue: "RelationshipRequestChannel")

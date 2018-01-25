@@ -9,8 +9,8 @@
 import UIKit
 import UserNotifications
 import ChameleonFramework
-import CloudKit
 import CoreData
+import Firebase
 
 @available(iOS 10.0, *)
 @UIApplicationMain
@@ -18,10 +18,11 @@ import CoreData
 class AppDelegate: UIResponder, UIApplicationDelegate {
     
     var window: UIWindow?
-   
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         UITabBar.appearance().tintColor = UIColor.flatPurple()
         UISegmentedControl.appearance().tintColor = UIColor.flatPurple()
+        FirebaseApp.configure()
         
         //Notification Setup
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
@@ -37,59 +38,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             
         }
         
+        Messaging.messaging().delegate = self
         return true
+    }
+    
+    
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
     }
     
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) {
         
-        let ckquery = CKQueryNotification(fromRemoteNotificationDictionary: userInfo)
-        //The issue is something that is being sent is a CKNotification
-
-        //The badge reset is also a notification, however it is a CKNotification that does not contain recordFields, it should be ignored
-        
-        //ignore notificationTYpe if 0
-        
-        guard ckquery.notificationType.rawValue != 0, let typeOfRecord = ckquery.recordFields?[Cloud.RecordKeys.RecordType] as? String else {
-            return
+        if let sendingUserID = userInfo[FirebaseDB.NotificationRelationshipRequestSenderKey] as? String, let requestedRelationshipID = userInfo[FirebaseDB.NotificationRelationshipRequestDataKey] as? String {
+           
+            NotificationCenter.default.post(name: NotificatonChannels.RelationshipRequestChannel, object: nil, userInfo: [FirebaseDB.NotificationRelationshipRequestSenderKey : sendingUserID, FirebaseDB.NotificationRelationshipRequestDataKey : requestedRelationshipID])
         }
         
-        switch typeOfRecord {
-            
-        case Cloud.Entity.RelationshipRequestResponse:
-            NotificationCenter.default.post(name: CloudKitNotifications.RelationshipRequestChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipRequestKey : ckquery])
-            
-        case Cloud.Entity.RelationshipRequest:
-            NotificationCenter.default.post(name: CloudKitNotifications.RelationshipRequestChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipRequestKey : ckquery])
-            
-        case Cloud.Entity.RelationshipRequestResponse:
-            NotificationCenter.default.post(name: CloudKitNotifications.RelationshipRequestResponseChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipRequestResponseKey : ckquery])
-            
-        case Cloud.Entity.UserTypingIndicator:
-            NotificationCenter.default.post(name: CloudKitNotifications.TypingIndicatorChannel, object: nil, userInfo: [CloudKitNotifications.TypingChannelKey : ckquery])
-            
-        case Cloud.Entity.User:
-            NotificationCenter.default.post(name: CloudKitNotifications.SecondaryUserUpdateChannel, object: nil, userInfo: [CloudKitNotifications.SecondaryUserUpdateKey : ckquery])
-            
-        case Cloud.Entity.Relationship:
-            
-            if ckquery.queryNotificationReason == .recordDeleted {
-                
-                NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)
-            }else {
-                
-                NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : ckquery])
-            }
-            
-        case Cloud.Entity.Message:
-            NotificationCenter.default.post(name: CloudKitNotifications.MessageChannel, object: nil, userInfo: [CloudKitNotifications.MessagKey : ckquery])
-            
-        case Cloud.Entity.RelationshipActivity:
-            
-            NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : ckquery])
-            
-        default:
-            break
-        }
     }
     
     func applicationWillResignActive(_ application: UIApplication) {
@@ -158,6 +122,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
             }
         }
+    }
+    
+}
+
+extension AppDelegate : MessagingDelegate {
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String) {
+        //let token = Messaging.messaging().fcmToken
     }
     
 }

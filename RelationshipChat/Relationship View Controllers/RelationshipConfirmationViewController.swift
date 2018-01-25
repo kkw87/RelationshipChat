@@ -7,7 +7,7 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 import MDCSwipeToChoose
 
 
@@ -25,6 +25,12 @@ class RelationshipConfirmationViewController: UIViewController {
         static let ErrorTitle = "Oops!"
         static let UserAnswerActivityMessage = "Sending your response"
         static let RelationshipRequestMessageTrailing = " has requested a relationship with you!"
+        
+        static let NotificationAcceptedTitleMessage = "Your relationship request was accepted!"
+        static let NotificationAcceptedTrailingBodyMessage = " has accepted your relationship request."
+        
+        static let NotificationDeclinedTitleMessage = "Your relationship request was declined!"
+        static let NotificationDeclinedTrailingBodyMessage = " has declined your relationship request."
         
         //Numerical Constants
         static let mainViewHorizontalPadding : CGFloat = 20.0
@@ -52,11 +58,10 @@ class RelationshipConfirmationViewController: UIViewController {
         return CGRect(x: Constants.mainViewHorizontalPadding, y: Constants.topPadding, width: self.view.frame.width - (Constants.mainViewHorizontalPadding * 2), height: self.view.frame.height - Constants.bottomPadding)
     }()
     
-    var usersRecord : CKRecord?
-    var relationshipRequestID : CKRecordID?
-    var sendersRecord : CKRecord?
-    var relationship : CKRecord?
     
+    var sendingUsersUID : String?
+    var requestedRelationshipUID : String?
+    private var sendingUserToken : String?
     
     //MARK: - VC Lifecycle
     
@@ -68,6 +73,7 @@ class RelationshipConfirmationViewController: UIViewController {
     //MARK: - Class Functions
     
     private func setup() {
+
         let options = MDCSwipeToChooseViewOptions()
         options.delegate = self
         options.likedText = "Yes!"
@@ -75,137 +81,160 @@ class RelationshipConfirmationViewController: UIViewController {
         options.nopeText = "Nope!"
         options.nopeColor = UIColor.red
         
-        let senderUserInformation = Cloud.pullUserInformationFrom(usersRecordToLoad: sendersRecord!)
-        messageLabel?.text = "\(senderUserInformation.usersFirstName)\(Constants.RelationshipRequestMessageTrailing)"
-        
-        //Setup swipe view
-        swipeView = ConfirmationView(frame: mainViewFrame, recordOfUserToShow: sendersRecord!, options: options)
-        view.addSubview(swipeView!)
-        constructLikedButton()
-        constructDeclineButton()
-    }
-    
-    func acceptRelationship() {
-        
-        let saveRecordsOperation = makeChangesToRecordsForSave()
-        
-        //Secondary user subscription updates
-        Cloud.saveMessageSubscription(relationship!, currentUser: usersRecord!)
-        Cloud.addsubscriptionToSecondaryUserChanges(currentRelationship: relationship!, currentUserRecord: usersRecord!)
-        
-        UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        saveRecordsOperation.savePolicy = .changedKeys
-        
-        saveRecordsOperation.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecords, error) in
-            
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            }
-            
+        RelationshipChatUser.pullUserFromFB(uid: sendingUsersUID!) { [weak self] (fetchedUser, error) in
             guard error == nil else {
-                _ = Cloud.errorHandling(error!, sendingViewController: self)
+                print(error!)
                 return
             }
             
-                DispatchQueue.main.async {
-                    self?.displayAlertWithTitle(Constants.RelationshipAcceptedTitle, withBodyMessage: Constants.RelationshipAcceptedBody, withBlock: { _ in
-                        
-                        NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : self?.relationship as Any])
-                        self?.presentingViewController?.dismiss(animated: true, completion: nil)
-                    })
-                }
+            guard let user = fetchedUser else {
+                print("unable to fetch user from relationship confirmation")
+                return
+            }
             
+            self?.messageLabel.text = "\(user.fullName)\(Constants.RelationshipRequestMessageTrailing)"
             
+            self?.sendingUserToken = user.tokenID
+            self?.swipeView = ConfirmationView(frame: (self?.mainViewFrame)!, recordOfUserToShow: user, options: options)
+            self?.view.addSubview((self?.swipeView!)!)
+            
+            self?.constructLikedButton()
+            self?.constructDeclineButton()
         }
-        
-        
-        Cloud.CloudDatabase.PublicDatabase.add(saveRecordsOperation)
     }
     
-    
-    
-    func declineRelationship() {
+    //TODO, setup swipe to accept accept relationship 
+    func acceptRelationship() {
+        //Fetch the relationship from FB
         
-        Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: relationship!.recordID) { [weak self] (deletedRelationship, error) in
-            if error != nil {
-                _ = Cloud.errorHandling(error!, sendingViewController: nil)
-            } else {
-                //Create new response with "Declined", directed back to user
-                let declinedResponseRecord = CKRecord(recordType: Cloud.Entity.RelationshipRequestResponse)
-                declinedResponseRecord[Cloud.RelationshipRequestResponseAttribute.StatusUpdate] = Cloud.Status.Declined as CKRecordValue?
-                declinedResponseRecord[Cloud.RelationshipRequestResponseAttribute.UserToSendTo] = CKReference(record: (self?.sendersRecord)!, action: .none) as CKRecordValue?
-                declinedResponseRecord[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipRequestResponse as CKRecordValue?
+        let relationshipMembers = [sendingUsersUID, (Auth.auth().currentUser?.uid)!]
+        let relationshipStartDate = Date().timeIntervalSince1970
+        let relationshipStatus = RelationshipStatus.Dating
+        FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipRelationshipNodeKey).child(requestedRelationshipUID!).updateChildValues([RelationshipKeys.Members : relationshipMembers, RelationshipKeys.StartDate : relationshipStartDate, RelationshipKeys.Status : relationshipStatus], withCompletionBlock: { [weak self] (error, _) in
+            
+            guard error == nil else {
+                DispatchQueue.main.async {
+                    self?.displayAlertWithTitle(Constants.ErrorTitle, withBodyMessage: error!.localizedDescription) { _ in
+                        self?.presentingViewController?.dismiss(animated: true, completion: nil)
+                    }
+                }
                 
-                let declinedResponseRecordsOp = CKModifyRecordsOperation(recordsToSave: [declinedResponseRecord], recordIDsToDelete: [(self?.relationshipRequestID)!])
-                declinedResponseRecordsOp.modifyRecordsCompletionBlock = { (savedRecords, deletedRecords, error) in
-                    
+                
+                
+                return
+            }
+            
+            FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(Auth.auth().currentUser!.uid).updateChildValues([RelationshipChatUserKeys.RelationshipKey : self!.requestedRelationshipUID!], withCompletionBlock: { (error, _) in
+                
+                guard error == nil else {
+                    DispatchQueue.main.async {
+                        self?.displayAlertWithTitle(Constants.ErrorTitle, withBodyMessage: error!.localizedDescription) { _ in
+                            self?.presentingViewController?.dismiss(animated: true, completion: nil)
+                        }
+                    }
+                    return
+                }
+                
+                let newAnniversaryActivity = RelationshipChatActivity()
+                newAnniversaryActivity.creationDate = Date()
+                newAnniversaryActivity.description = SystemActivity.AnniversaryActivityDescription
+                newAnniversaryActivity.title = SystemActivity.AnniversaryActivityTitle
+                newAnniversaryActivity.systemActivity = SystemActivity.Anniversary
+                newAnniversaryActivity.relationship = self!.requestedRelationshipUID!
+                newAnniversaryActivity.saveActivity(completionHandler: { (error, activityID) in
                     guard error == nil else {
-                        _ = Cloud.errorHandling(error!, sendingViewController: self)
+                        print(error!)
                         return
                     }
                     
-                    DispatchQueue.main.async {
-                        self?.displayAlertWithTitle(Constants.RelationshipDeclinedTitle, withBodyMessage: Constants.RelationshipDeclinedBody, withBlock: { _ in
-                            self?.presentingViewController?.dismiss(animated: true, completion: nil)
-                        })
-                    }
+                    FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipRelationshipNodeKey).child(self!.requestedRelationshipUID!).updateChildValues([RelationshipKeys.AnniversaryRecordID : activityID!])
                     
-                    
-                }
-                Cloud.CloudDatabase.PublicDatabase.add(declinedResponseRecordsOp)
+                })
                 
+                FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(Auth.auth().currentUser!.uid).observeSingleEvent(of: .value, with: { (snapshot) in
+                    let currentUserValues = snapshot.value as! [String : Any]
+                    let currentUsersBirthday = Date(timeIntervalSince1970: currentUserValues[RelationshipChatUserKeys.BirthdayKey] as! TimeInterval)
+                    let currentUsersFirstName = currentUserValues[RelationshipChatUserKeys.FirstNameKey] as! String
+                    
+                    
+                    let currentUserBirthdayActivity = RelationshipChatActivity()
+                    currentUserBirthdayActivity.title = "\(currentUsersFirstName)\(SystemActivity.BirthdayActivityTrailingTitle)"
+                    currentUserBirthdayActivity.description = "\(currentUsersFirstName)\(SystemActivity.BirthdayActivityTrailingBody)"
+                    currentUserBirthdayActivity.creationDate = currentUsersBirthday
+                    currentUserBirthdayActivity.systemActivity = SystemActivity.Birthday
+                    currentUserBirthdayActivity.relationship = self!.requestedRelationshipUID!
+                    currentUserBirthdayActivity.saveActivity(completionHandler: { (error, activityID) in
+                        guard error == nil else {
+                            print(error!)
+                            return
+                        }
+                        
+                        FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(Auth.auth().currentUser!.uid).updateChildValues([RelationshipChatUserKeys.BirthdayActivityID : activityID!])
+                    })
+                    
+                })
+                
+                FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(self!.sendingUsersUID!).observeSingleEvent(of: .value, with: { (snapshot) in
+                    let sendingUserValues = snapshot.value as! [String : Any]
+                    let sendingUsersBirthday = Date(timeIntervalSince1970: sendingUserValues[RelationshipChatUserKeys.BirthdayKey] as! TimeInterval)
+                    let sendingUsersFirstName = sendingUserValues[RelationshipChatUserKeys.FirstNameKey] as! String
+                    
+                    
+                    let sendingUserBirthdayActivity = RelationshipChatActivity()
+                    sendingUserBirthdayActivity.title = "\(sendingUsersFirstName)\(SystemActivity.BirthdayActivityTrailingTitle)"
+                    sendingUserBirthdayActivity.description = "\(sendingUsersFirstName)\(SystemActivity.BirthdayActivityTrailingBody)"
+                    sendingUserBirthdayActivity.creationDate = sendingUsersBirthday
+                    sendingUserBirthdayActivity.systemActivity = SystemActivity.Birthday
+                    sendingUserBirthdayActivity.relationship = self!.requestedRelationshipUID!
+                    sendingUserBirthdayActivity.saveActivity(completionHandler: { (error, activityID) in
+                        guard error == nil else {
+                            print(error!)
+                            return
+                        }
+                        
+                        FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(self!.sendingUsersUID!).updateChildValues([RelationshipChatUserKeys.BirthdayActivityID : activityID!])
+                    })
+                    
+                    
+                })
+                
+                
+                DispatchQueue.main.async {
+                    self?.displayAlertWithTitle(Constants.RelationshipAcceptedTitle, withBodyMessage: Constants.RelationshipAcceptedBody, withBlock: { _ in
+                        self?.presentingViewController?.dismiss(animated: true, completion: nil)
+                    })
+                }
+                
+                
+            })
+            
+        })
+    }
+    
+    
+    //TODO, setup relationship confirmation decline relationship
+    func declineRelationship() {
+        
+        RelationshipChatRelationship.deleteRelationship(relationshipUID: requestedRelationshipUID!) { (error) in
+            
+            guard error == nil else {
+                print(error!.localizedDescription)
+                return
             }
+            
+            DispatchQueue.main.async {
+                self.displayAlertWithTitle(Constants.RelationshipDeclinedTitle, withBodyMessage: Constants.RelationshipDeclinedBody, withBlock: { _ in
+                    FirebaseDB.sendNotification(toTokenID: self.sendingUserToken!, titleText: Constants.NotificationDeclinedTitleMessage, bodyText: Constants.NotificationDeclinedTrailingBodyMessage, dataDict: nil, contentAvailable: false, completionHandler: { (error) in
+                        
+                    })
+                    self.presentingViewController?.dismiss(animated: true, completion: nil)
+                })
+            }
+            
         }
+        
     }
     
-    
-    private func makeChangesToRecordsForSave() -> CKModifyRecordsOperation {
-        
-        relationship![Cloud.RelationshipAttribute.StartDate] = Date() as CKRecordValue?
-        relationship![Cloud.RelationshipAttribute.Status] = Cloud.RelationshipStatus.Dating as CKRecordValue?
-        
-        if var userArray = relationship![Cloud.RelationshipAttribute.Users] as? [CKReference] {
-            userArray.append(CKReference(record: usersRecord!, action: .deleteSelf))
-            relationship![Cloud.RelationshipAttribute.Users] = userArray as CKRecordValue?
-            
-        } else {
-            let userReference = CKReference(record: usersRecord!, action: .deleteSelf)
-            relationship![Cloud.RelationshipAttribute.Users] = [userReference] as CKRecordValue?
-        }
-        
-        usersRecord![Cloud.UserAttribute.Relationship] = CKReference(record: relationship!, action: .none)
-        
-        let acceptedResponse = CKRecord(recordType: Cloud.Entity.RelationshipRequestResponse)
-        acceptedResponse[Cloud.RelationshipRequestResponseAttribute.StatusUpdate] = Cloud.Status.Accepted as CKRecordValue?
-        acceptedResponse[Cloud.RelationshipRequestResponseAttribute.UserToSendTo] = CKReference(record: sendersRecord!, action: .deleteSelf) as CKRecordValue?
-        acceptedResponse[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipRequestResponse as CKRecordValue?
-        
-        let usersName = usersRecord![Cloud.UserAttribute.FirstName] as! String
-        let usersBirthdayActivity = CKRecord(recordType: Cloud.Entity.RelationshipActivity)
-        
-        let usersBirthdayDate = usersRecord![Cloud.UserAttribute.Birthday] as! Date
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.CreationDate] = usersBirthdayDate as CKRecordValue?
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.Message] = "Today is \(usersName)'s birthday!" as CKRecordValue?
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.Name] = "\(usersName)'s birthday" as CKRecordValue?
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.SystemCreated] = Cloud.RelationshipActivitySystemCreatedTypes.Birthday as CKRecordValue?
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.Relationship] = CKReference(record: relationship!, action: .deleteSelf) as CKRecordValue?
-        usersBirthdayActivity[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipActivity as CKRecordValue?
-        
-        
-        if var relationshipActivityArray = relationship![Cloud.RelationshipAttribute.Activities] as? [CKReference] {
-            
-            let newActivityReference = CKReference(record: usersBirthdayActivity, action: .none)
-            
-            relationshipActivityArray.append(newActivityReference)
-            relationship![Cloud.RelationshipAttribute.Activities] = relationshipActivityArray as CKRecordValue?
-            
-        } else {
-            let newActivityReference = CKReference(record: usersBirthdayActivity, action: .none)
-            relationship![Cloud.RelationshipAttribute.Activities] = [newActivityReference] as CKRecordValue?
-        }
-        
-        return CKModifyRecordsOperation(recordsToSave: [relationship!, acceptedResponse, usersRecord!, usersBirthdayActivity], recordIDsToDelete: [self.relationshipRequestID!])
-    }
     
     //MARK : - View Construction Methods
     private func constructDeclineButton() -> Void{

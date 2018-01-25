@@ -7,13 +7,10 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 import MapKit
 
 class NewActivityViewController: UITableViewController{
-    
-    // MARK: - Model
-    var dataSource : ActivityTableViewControllerDataSource?
     
     // MARK : - Constants
     struct Constants {
@@ -42,7 +39,7 @@ class NewActivityViewController: UITableViewController{
         }
     }
     
-
+    
     
     @IBOutlet weak var descriptionBox: UITextView! {
         didSet {
@@ -63,7 +60,7 @@ class NewActivityViewController: UITableViewController{
             locationDisplayButton.clipsToBounds = true
         }
     }
-
+    
     @IBOutlet weak var saveButton: UIBarButtonItem!
     
     
@@ -90,12 +87,10 @@ class NewActivityViewController: UITableViewController{
         }
     }
     
-    fileprivate var newActivity = CKRecord(recordType: Cloud.Entity.RelationshipActivity)
-    
     fileprivate var loadingView = ActivityView(withMessage: "")
     
     // MARK : - VC Lifecycle
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         locationDisplayButton.setTitleColor(UIColor.systemBlue, for: .normal)
@@ -103,7 +98,7 @@ class NewActivityViewController: UITableViewController{
         navigationItem.largeTitleDisplayMode = .never
     }
     
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
@@ -114,6 +109,7 @@ class NewActivityViewController: UITableViewController{
         
         activityTitleTextField.resignFirstResponder()
         descriptionBox.resignFirstResponder()
+        
         
         guard let activityTitle = activityTitleTextField.text, !(activityTitleTextField.text?.isEmpty)! else {
             displayAlertWithTitle(Constants.DefaultErrorMessageTitle, withBodyMessage: Constants.NoActivityTitleEnteredMessage, withBlock: nil)
@@ -126,47 +122,80 @@ class NewActivityViewController: UITableViewController{
             descriptionBox.backgroundColor = UIColor.red.withAlphaComponent(Constants.AlphaValue)
             return
         }
-
-            let newActivity = CKRecord(recordType: Cloud.Entity.RelationshipActivity)
-            let activityDate = datePicker.date
-            
-
-            newActivity[Cloud.RelationshipActivityAttribute.CreationDate] = activityDate as CKRecordValue?
-            newActivity[Cloud.RelationshipActivityAttribute.Message] = activityDescription as CKRecordValue?
-            newActivity[Cloud.RelationshipActivityAttribute.Name] = activityTitle as CKRecordValue?
-            newActivity[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipActivity as CKRecordValue?
         
-        if activityLocation != nil {
+        //Pull relationship ID from user
+        FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(Auth.auth().currentUser!.uid).observeSingleEvent(of: .value) { (snapshot) in
+            let userValues = snapshot.value as! [String : Any]
+            let currentUserName = userValues[RelationshipChatUserKeys.FirstNameKey] as! String
+            let relationshipID = userValues[RelationshipChatUserKeys.RelationshipKey] as! String
             
-            let activityTitle = (activityLocation?.name)!
-            let stringAddress = MKPlacemark.parseAddress(selectedItem: activityLocation!)
             
-            newActivity[Cloud.RelationshipActivityAttribute.LocationStringName] = activityTitle as CKRecordValue?
-            newActivity[Cloud.RelationshipActivityAttribute.LocationStringAddress] = stringAddress as CKRecordValue?
-            newActivity[Cloud.RelationshipActivityAttribute.Location] = CLLocation(latitude: activityLocation!.coordinate.latitude, longitude: activityLocation!.coordinate.longitude) as CKRecordValue?
-        }
-        
-        
-        view.addSubview(loadingView)
-        loadingView.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
-        loadingView.updateMessageWith(message: Constants.ActivitySavingMessage)
-        UIApplication.shared.isNetworkActivityIndicatorVisible = true
-
-        dataSource?.addActivity(newActivityToSave: newActivity) { [weak self] (activitySaved, error) in
             
-            print("completed")
+            
+            let newActivity = RelationshipChatActivity()
+            newActivity.title = activityTitle
+            newActivity.description = activityDescription
+            newActivity.relationship = relationshipID
+            newActivity.creationDate = self.datePicker.date
+            
+            
+            if self.activityLocation != nil, let activityTitle = self.activityLocation?.name {
+                
+                let stringAddress = MKPlacemark.parseAddress(selectedItem: self.activityLocation!)
+                newActivity.locationStringName = activityTitle
+                newActivity.locationStringAddress = stringAddress
+                newActivity.location = CLLocationCoordinate2D(latitude: self.activityLocation!.coordinate.latitude, longitude: self.activityLocation!.coordinate.longitude)
+                
+            }
+            
             DispatchQueue.main.async {
-                self?.loadingView.removeFromSuperview()
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                
+                self.view.addSubview(self.loadingView)
+                self.loadingView.center = CGPoint(x: self.view.bounds.midX, y: self.view.bounds.midY)
+                self.loadingView.updateMessageWith(message: Constants.ActivitySavingMessage)
+                UIApplication.shared.isNetworkActivityIndicatorVisible = true
+                
+                
             }
+            newActivity.saveActivity(completionHandler: { (error, activityID) in
+                guard error == nil else {
+                    print(error!)
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    self.loadingView.removeFromSuperview()
+                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    self.performSegue(withIdentifier: Storyboard.ProfileUnwindSegue, sender: self)
+                    
+                }
+                
+                FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipRelationshipNodeKey).child(relationshipID).observeSingleEvent(of: .value, with: { (snapshot) in
+                    
+                    let secondaryUserValues = (snapshot.value as! [String : Any])[RelationshipKeys.Members] as! [String]
+                    let secondaryUserID = secondaryUserValues.filter {
+                        $0 != Auth.auth().currentUser?.uid
+                        }.first
+                    
+                    FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(secondaryUserID!).observeSingleEvent(of: .value, with: { (userSnapshot) in
+                        let secondaryUserTokenID = (userSnapshot.value as! [String : Any])[RelationshipChatUserKeys.NotificationTokenID] as! String
+                        
+                        FirebaseDB.sendNotification(toTokenID: secondaryUserTokenID, titleText: "\(currentUserName) set a new activity!", bodyText: newActivity.description, dataDict: nil, contentAvailable: false, completionHandler: { (error) in
+                            guard error == nil else {
+                                print(error)
+                                return 
+                            }
+                        })
+                        
+                    })
+                    
+                })
+                
+                
+            })
             
-            guard error == nil else {
-                _ = Cloud.errorHandling(error!, sendingViewController: self)
-                return
-            }
-            
-            self?.performSegue(withIdentifier: Storyboard.ProfileUnwindSegue, sender: self)
         }
+        
     }
     
     @IBAction func getDirectionsToSelectedAddress(_ sender: UIButton) {
@@ -183,7 +212,7 @@ class NewActivityViewController: UITableViewController{
     
     
     // MARK: - Navigation
-
+    
     // In a storyboard-based application, you will often want to do a little preparation before navigation
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if let identifier = segue.identifier {
@@ -234,7 +263,7 @@ extension NewActivityViewController : UITextFieldDelegate {
 //MARK : - UITextView Delegates
 
 extension NewActivityViewController : UITextViewDelegate {
-        func textViewDidBeginEditing(_ textView: UITextView) {
+    func textViewDidBeginEditing(_ textView: UITextView) {
         textView.backgroundColor = UIColor.white
     }
     
@@ -258,7 +287,7 @@ extension NewActivityViewController : UITextViewDelegate {
         }
         return true
     }
-
+    
     
 }
 

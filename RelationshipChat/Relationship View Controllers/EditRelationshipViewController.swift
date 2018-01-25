@@ -7,7 +7,7 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 
 class EditRelationshipViewController: UITableViewController {
     
@@ -33,7 +33,7 @@ class EditRelationshipViewController: UITableViewController {
     }
     
     //MARK : - Instance Properties
-    var relationship : CKRecord?
+    var relationship : RelationshipChatRelationship?
     
     fileprivate var relationshipStatus : String {
         get {
@@ -79,25 +79,24 @@ class EditRelationshipViewController: UITableViewController {
     @IBAction func saveUpdates(_ sender: Any) {
 
         if originalRelationshipDate == relationshipStartDatePicker.date && originalRelationshipStatus == statusArray[statusPicker.selectedRow(inComponent: 0)] {
-            
+
             let noChangesMadeAlertController = UIAlertController(title: Constants.NoRelationshipChangesAlertTitle, message: Constants.NoRelationshipChangesAlertBody, preferredStyle: .alert)
             noChangesMadeAlertController.addAction(UIAlertAction(title: Constants.EndRelationshipCancelButtonTitle, style: .cancel, handler: nil))
             present(noChangesMadeAlertController, animated: true, completion: nil)
             return
         }
         
-        relationship![Cloud.RelationshipAttribute.Status] = relationshipStatus as CKRecordValue?
-        relationship![Cloud.RelationshipAttribute.StartDate] = relationshipStartDatePicker.date as CKRecordValue?
-        
-        
+        relationship!.status = relationshipStatus
+        relationship!.startDate = relationshipStartDatePicker.date
+
+
         saveButton.isEnabled = false
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
         view.addSubview(loadingView)
         loadingView.updateMessageWith(message: Constants.SaveMessage)
         loadingView.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
         
-        Cloud.CloudDatabase.PublicDatabase.save(relationship!) { [weak self] (savedRelationship, error) in
-            
+        relationship!.updateCurrentRelationship { [weak self](error) in
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
                 self?.saveButton.isEnabled = true
@@ -109,24 +108,19 @@ class EditRelationshipViewController: UITableViewController {
                 print(error!)
                 return
             }
-            
+      
             DispatchQueue.main.async {
                 if self?.originalRelationshipDate != self?.relationshipStartDatePicker.date {
                     self?.updateAnniversaryRecord()
                 }
-            }
-            
-            
-            NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : (self?.relationship)!])
-            
-            DispatchQueue.main.async {
+                
                 self?.displayAlertWithTitle(Constants.SaveSuccessTitle, withBodyMessage: Constants.SaveSuccessBody, withBlock: { (alert) in
+                    
                     
                     self?.performSegue(withIdentifier: Storyboard.EditRelationshipUnwindSegue, sender: self)
                     
                 })
             }
-            
         }
         
     }
@@ -134,16 +128,16 @@ class EditRelationshipViewController: UITableViewController {
     @IBAction func endRelationship(_ sender: Any) {
 
         let confirmationVC = UIAlertController(title: Constants.DeleteConfirmationTitle, message: Constants.DeleteConfirmationBody, preferredStyle: .alert)
-        
+
         let cancelRelationship = UIAlertAction(title: Constants.EndRelationshipButtonTitle, style: .destructive) { [weak self] (alertAction) in
-            
+
             self!.loadingView.updateMessageWith(message: Constants.DeleteMessage)
             self!.view.addSubview(self!.loadingView)
             self!.loadingView.center = CGPoint(x: self!.view.bounds.midX, y: self!.view.bounds.midY)
 
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
 
-            Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: (self?.relationship!.recordID)!) { (deletedRelationship, error) in
+            RelationshipChatRelationship.deleteRelationship(relationshipUID: self!.relationship!.relationshipUID, completionHandler: { (error) in
                 
                 DispatchQueue.main.async {
                     UIApplication.shared.isNetworkActivityIndicatorVisible = false
@@ -152,26 +146,26 @@ class EditRelationshipViewController: UITableViewController {
                 
                 guard error == nil else {
                     _ = Cloud.errorHandling(error!, sendingViewController: self)
+                    print(error!)
                     return
                 }
                 
                 self?.relationship = nil
-
+                
                 DispatchQueue.main.async {
                     self?.displayAlertWithTitle(Constants.DeleteSuccessTitle, withBodyMessage: Constants.DeleteSuccessBody, withBlock: { (action) in
-                        NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)
                         self?.performSegue(withIdentifier: Storyboard.EditRelationshipUnwindSegue, sender: self)
+                        self?.navigationController?.popToRootViewController(animated: true)
+                        
                     })
                 }
-                
-                
-            }
+            })
         }
-        
+
         confirmationVC.addAction(cancelRelationship)
         confirmationVC.addAction(UIAlertAction(title: Constants.EndRelationshipCancelButtonTitle, style: .cancel, handler: nil))
         present(confirmationVC, animated: true, completion: nil)
-        
+
     }
     
     
@@ -189,10 +183,10 @@ class EditRelationshipViewController: UITableViewController {
             return
         }
 
-        let relationshipStartDate = relationship![Cloud.RelationshipAttribute.StartDate] as! Date
+        let relationshipStartDate = relationship!.startDate
         originalRelationshipDate = relationshipStartDate
         
-        let relationshipStatus = relationship![Cloud.RelationshipAttribute.Status] as! String
+        let relationshipStatus = relationship!.status
         originalRelationshipStatus = relationshipStatus
         
         relationshipStartDatePicker.setDate(relationshipStartDate, animated: true)
@@ -201,54 +195,13 @@ class EditRelationshipViewController: UITableViewController {
     
     fileprivate func updateAnniversaryRecord() {
         
-        let recordTypePredicate = NSPredicate(format: "systemActivity = %@", Cloud.RelationshipActivitySystemCreatedTypes.Anniversary)
-        let relationshipPredicate = NSPredicate(format: "relationship = %@", relationship!)
-        
-        let searchPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [recordTypePredicate, relationshipPredicate])
-        
-        let query = CKQuery(recordType: Cloud.Entity.RelationshipActivity, predicate: searchPredicate)
-        
-        DispatchQueue.main.async {
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        }
-        Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: { [weak self] (fetchedRecords, error) in
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            }
+        //Update Anniversary Activity date
+        FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipRelationshipNodeKey).child(relationship!.relationshipUID).observeSingleEvent(of: .value, with: { (snapshot) in
+            let relationshipDict = snapshot.value as! [String : Any]
+            let anniversaryActivityID = relationshipDict[RelationshipKeys.AnniversaryRecordID] as! String
             
-            guard error == nil else {
-                print(error!)
-                _ = Cloud.errorHandling(error!, sendingViewController: self)
-                return
-            }
-            
-            guard let anniversaryRecord = fetchedRecords?.first else {
-                print("Unable to find anniversary record ")
-                return
-            }
-
-            
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = true
-                anniversaryRecord[Cloud.RelationshipActivityAttribute.CreationDate] = self?.relationshipStartDatePicker.date as CKRecordValue?
-            }
-            
-            Cloud.CloudDatabase.PublicDatabase.save(anniversaryRecord, completionHandler: { (savedRecord, error) in
-                
-                DispatchQueue.main.async {
-                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                }
-                
-                guard error == nil else {
-                    _ = Cloud.errorHandling(error!, sendingViewController: self)
-                    print(error!)
-                    return
-                }
-                NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : savedRecord!])
-                
-            })
+            FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipActivityNodeKey).child(anniversaryActivityID).updateChildValues([ActivityKeys.ActivityDate : self.relationship!.startDate.timeIntervalSince1970])
         })
-        
     }
     
 }

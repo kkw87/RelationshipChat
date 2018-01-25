@@ -7,8 +7,7 @@
 //
 
 import UIKit
-//import Contacts
-import CloudKit
+import Firebase
 
 @available(iOS 10.0, *)
 class RelationshipTableViewCell: UITableViewCell {
@@ -49,13 +48,26 @@ class RelationshipTableViewCell: UITableViewCell {
     //MARK : - Instance Properties
     var delegate : RelationshipCellDelegate?
     
-    var userRecord : CKRecord?
-    var clickedUsersRecord : CKRecord? {
+    var currentUser : RelationshipChatUser?
+    var selectedUser : RelationshipChatUser? {
         didSet {
-            if clickedUsersRecord != nil {
-                let userInformation = Cloud.pullUserInformationFrom(usersRecordToLoad: clickedUsersRecord!)
-                userName.text = userInformation.usersFullName
-                userImage = userInformation.usersImage
+            if selectedUser != nil {
+                userName.text = selectedUser?.fullName
+                DispatchQueue.main.async {
+                    UIApplication.shared.isNetworkActivityIndicatorVisible = true
+                }
+                selectedUser?.getUsersProfileImage(completionHandler: { [weak self](usersImage, error) in
+                    DispatchQueue.main.async {
+                        UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    }
+                    
+                    guard error == nil else {
+                        print(error!.localizedDescription)
+                        return
+                    }
+                    
+                    self?.userImage = usersImage
+                })
             }
         }
     }
@@ -65,9 +77,11 @@ class RelationshipTableViewCell: UITableViewCell {
             return userImageView.image
         } set {
             if newValue != nil {
-                spinner.stopAnimating()
-                spinner.isHidden = true
-                userImageView.image = newValue!
+                DispatchQueue.main.async {
+                    self.spinner.stopAnimating()
+                    self.spinner.isHidden = true
+                    self.userImageView.image = newValue!
+                }
             }
         }
     }
@@ -75,90 +89,48 @@ class RelationshipTableViewCell: UITableViewCell {
     //MARK : - Outlet functions
     @IBAction func requestRelationship(_: Any) {
         
-        if userRecord?[Cloud.UserAttribute.Relationship] != nil {
-            delegate?.displayAlertWithTitle(Constants.DefaultErrorMessageTitle, withBodyMessage: Constants.UserInARelationshipErrorMessage, completion: nil)
-        } else if clickedUsersRecord?[Cloud.UserAttribute.Relationship] != nil {
-            delegate?.displayAlertWithTitle(Constants.DefaultErrorMessageTitle, withBodyMessage: Constants.RequestedUserInARelationshipMessage, completion: nil)
-        } else {
-       
-            let saveRecordsOperation = CKModifyRecordsOperation()
-            saveRecordsOperation.recordsToSave = makeChangesToRecords()
-            saveRecordsOperation.savePolicy = .allKeys
-            
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        //Make a new relationship
+        let newRelationship = RelationshipChatRelationship()
+        newRelationship.relationshipMembers.append(currentUser!.userUID!)
+        
+        newRelationship.saveNewRelationship { [weak self] (error) in
+            guard error == nil else {
+                print(error!)
+                return
             }
-      
-            saveRecordsOperation.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecordsID, error) in
-                
-                DispatchQueue.main.async {
-                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                }
-                
+            
+            
+            FirebaseDB.sendNotification(toTokenID: (self?.selectedUser!.tokenID)!, titleText: "You have a relationship request!", bodyText: "\((self?.currentUser?.fullName)!) has requested a relationship with you!", dataDict: [FirebaseDB.NotificationRelationshipRequestDataKey : newRelationship.relationshipUID, FirebaseDB.NotificationRelationshipRequestSenderKey : (self?.currentUser!.userUID)!], contentAvailable: true) { (error) in
+                                
                 guard error == nil else {
-                    _ = Cloud.errorHandling(error!, sendingViewController: nil)
-                    print("error, newrelationship from relationshiptableviewcell")
+                    self?.delegate?.displayAlertWithTitle(Constants.DefaultErrorMessageTitle, withBodyMessage: error!.localizedDescription, completion: nil)
                     return
                 }
-
+                
+                //Update current User, relationship should download
+                self?.currentUser?.relationship = newRelationship.relationshipUID
+                
+                self?.currentUser?.saveUserToDB(userImage: nil, completionBlock: { (_, error) in
+                    guard error == nil else {
+                        print(error!)
+                        return
+                    }          
                     self?.delegate?.displayAlertWithTitle(Constants.RelationshipSuccessTitle, withBodyMessage: Constants.RelationshipBodyMessage) {_ in
                         self?.delegate?.popBackToRoot()
                     }
                     
-                    let newRelationship = savedRecords?.filter { $0[Cloud.RecordKeys.RecordType] as! String == Cloud.Entity.Relationship}.first
-                    NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : newRelationship!])
+                })
                 
             }
-            Cloud.CloudDatabase.PublicDatabase.add(saveRecordsOperation)
+            
         }
+        
+
         
     }
     
     //MARK : - Class functions
     
-    func makeChangesToRecords() -> [CKRecord] {
-        
-        let newRelationship = CKRecord(recordType: Cloud.Entity.Relationship)
-        newRelationship[Cloud.RelationshipAttribute.Users] = [CKReference(record: userRecord!, action: .deleteSelf)] as CKRecordValue?
-        
-        newRelationship[Cloud.RelationshipAttribute.Status] = Cloud.RelationshipStatus.Pending as CKRecordValue?
-        newRelationship[Cloud.RecordKeys.RecordType] = Cloud.Entity.Relationship as CKRecordValue?
-        
-        let anniversaryActivity = CKRecord(recordType: Cloud.Entity.RelationshipActivity)
-        anniversaryActivity[Cloud.RelationshipActivityAttribute.CreationDate] = Date() as CKRecordValue?
-        anniversaryActivity[Cloud.RelationshipActivityAttribute.Message] = "Your anniversary" as CKRecordValue?
-        anniversaryActivity[Cloud.RelationshipActivityAttribute.Name] = "Anniversary" as CKRecordValue?
-        anniversaryActivity[Cloud.RelationshipActivityAttribute.SystemCreated] = Cloud.RelationshipActivitySystemCreatedTypes.Anniversary as CKRecordValue?
-        anniversaryActivity[Cloud.RelationshipActivityAttribute.Relationship] = CKReference(record: newRelationship, action: .deleteSelf) as CKRecordValue?
-        anniversaryActivity[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipActivity as CKRecordValue?
-        
-        let usersBirthdayActivity = CKRecord(recordType: Cloud.Entity.RelationshipActivity)
-        
-        let usersBirthdayDate = userRecord![Cloud.UserAttribute.Birthday] as! Date
-        
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.CreationDate] = usersBirthdayDate as CKRecordValue?
-        let usersName = userRecord![Cloud.UserAttribute.FirstName] as! String
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.Message] = "Today is \(usersName)'s birthday!" as CKRecordValue?
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.Relationship] = CKReference(record: newRelationship, action: .deleteSelf)
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.Name] = "\(usersName)'s birthday!" as CKRecordValue?
-        usersBirthdayActivity[Cloud.RelationshipActivityAttribute.SystemCreated] = Cloud.RelationshipActivitySystemCreatedTypes.Birthday as CKRecordValue?
-        usersBirthdayActivity[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipActivity as CKRecordValue?
-        
-        newRelationship[Cloud.RelationshipAttribute.Activities] = [CKReference(record: usersBirthdayActivity, action: .none), CKReference(record: anniversaryActivity, action: .none)] as CKRecordValue?
-        
-        let relationshipRequest = CKRecord(recordType: Cloud.Entity.RelationshipRequest)
-        
-        relationshipRequest[Cloud.RelationshipRequestAttribute.Sender] = CKReference(record: userRecord!, action: .deleteSelf) as CKRecordValue?
-        
-        relationshipRequest[Cloud.RelationshipRequestAttribute.Relationship] = CKReference(record: newRelationship, action: .deleteSelf) as CKRecordValue?
-        
-        relationshipRequest[Cloud.RelationshipRequestAttribute.UserToSendTo] = CKReference(record: clickedUsersRecord!, action: .deleteSelf) as CKRecordValue?
-        
-        relationshipRequest[Cloud.RecordKeys.RecordType] = Cloud.Entity.RelationshipRequest as CKRecordValue?
-        
-        userRecord![Cloud.UserAttribute.Relationship] = CKReference(record: newRelationship, action: .none) as CKRecordValue?
-        
-        return [userRecord!, newRelationship, relationshipRequest, usersBirthdayActivity, anniversaryActivity]
-    }
+
     
 }

@@ -33,22 +33,38 @@ class ConfirmationView : MDCSwipeToChooseView {
     fileprivate var age = 0
     fileprivate var gender = ""
     
-    
     //MARK: - Initializers
-    init(frame: CGRect, recordOfUserToShow : CKRecord, options: MDCSwipeToChooseViewOptions) {
+    init(frame: CGRect, recordOfUserToShow : RelationshipChatUser, options: MDCSwipeToChooseViewOptions) {
         super.init(frame: frame, options: options)
         
-        let userInformation = Cloud.pullUserInformationFrom(usersRecordToLoad: recordOfUserToShow)
         let calendar = NSCalendar.current
         
         self.imageView.contentMode = .scaleAspectFill
-        self.imageView.image = userInformation.usersImage
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        }
+        recordOfUserToShow.getUsersProfileImage { [weak self] (userImage, error) in
+            DispatchQueue.main.async {
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+            }
+            
+            guard error == nil else {
+                print(error!.localizedDescription)
+                return
+            }
+            
+            DispatchQueue.main.async {
+                self?.imageView.image = userImage!
+            }
+            
+        }
         self.imageView.backgroundColor = UIColor.white
-        self.nameToUse = userInformation.usersFullName
-        self.gender = userInformation.usersGender
+        self.nameToUse = recordOfUserToShow.fullName
+        self.gender = recordOfUserToShow.gender
         
         let currentDate = calendar.startOfDay(for: Date())
-        let usersBirthday = calendar.startOfDay(for: (recordOfUserToShow[Cloud.UserAttribute.Birthday] as! Date))
+        let usersBirthday = calendar.startOfDay(for: (recordOfUserToShow.birthday))
         
         self.age = calendar.dateComponents([.year], from: usersBirthday, to: currentDate).year!
         
@@ -98,12 +114,10 @@ class ConfirmationView : MDCSwipeToChooseView {
         
         var imageName = ""
         switch gender {
-        case Cloud.Gender.Male :
+        case UsersGender.Male :
             imageName = "MaleIcon"
-        case Cloud.Gender.Female :
-            imageName = "FemaleIcon"
         default :
-            break
+            imageName = "FemaleIcon"
         }
         
         let image: UIImage = UIImage(named: imageName)!

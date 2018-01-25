@@ -7,24 +7,8 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 import MapKit
-
-//MARK: - Data structures
-struct RelationshipActivity {
-    let daysUntilActivity : Int
-    let activityRecord : CKRecord
-    let activityDate : Date
-}
-
-//MARK: - ActivityTableViewController Data Source
-protocol ActivityTableViewControllerDataSource {
-    func deleteActivity(activityRecordID : CKRecordID)
-    
-    func addActivity(newActivityToSave : CKRecord, completionHandler : ((Bool?, Error?)->Void)?)
-    
-    func inAValidRelationshipCheck() -> Bool
-}
 
 class ActivityTableViewController: UITableViewController {
     
@@ -45,12 +29,10 @@ class ActivityTableViewController: UITableViewController {
     
     // MARK: - Model
     
-    var dataSource : ActivityTableViewControllerDataSource?
-    
-    var activities = [RelationshipActivity]() {
+    var activities = [RelationshipChatActivity]() {
         didSet {
-            self.activities = self.activities.sorted {
-                $0.daysUntilActivity < $1.daysUntilActivity
+            activities.sort {
+                $0.daysUntil < $1.daysUntil
             }
             DispatchQueue.main.async {
                 self.tableView.reloadData()
@@ -99,21 +81,23 @@ class ActivityTableViewController: UITableViewController {
         
         let deletedAction = UIContextualAction(style: .destructive, title: "Delete") { [weak self] (action, view, completionHandler) in
             
-            guard let recordToBeDeleted = self?.activities[indexPath.row].activityRecord, recordToBeDeleted[Cloud.RelationshipActivityAttribute.SystemCreated] == nil else {
+            guard let recordToBeDeleted = self?.activities[indexPath.row], recordToBeDeleted.systemActivity == nil else {
                 let alertController = UIAlertController(title: Constants.SwipeToDeleteErrorTitle, message: Constants.SwipeToDeleteErrorBody, preferredStyle: .alert)
                 alertController.addAction(UIAlertAction(title: "Done", style: .default, handler: nil))
                 self?.present(alertController, animated: true, completion: nil)
                 return
             }
-            //Filter current activities array to remove the deleted record
-            self?.activities = (self?.activities.filter {
-                $0.activityRecord != recordToBeDeleted
-                })!
-            self?.dataSource?.deleteActivity(activityRecordID: recordToBeDeleted.recordID)
+            
+            self?.activities.remove(at: indexPath.row)
+            
+            RelationshipChatActivity.deleteActivity(activityID: recordToBeDeleted.activityUID, completionHandler: { (error) in
+                guard error == nil else {
+                    print(error!)
+                    return
+                }
+            })
         }
         
-        //set garbage can image
-        //deletedAction.image = ""
         deletedAction.backgroundColor = UIColor.red
         
         return UISwipeActionsConfiguration(actions: [deletedAction])
@@ -126,10 +110,10 @@ class ActivityTableViewController: UITableViewController {
             switch identifier {
             case Storyboard.SegueID:
                 if let activityOverviewVC = (segue.destination as? UINavigationController)?.contentViewController as? ActivityOverviewViewController {
-                    let selectedActivityRecord = activities[(tableView.indexPathForSelectedRow?.row)!].activityRecord
+                    let selectedActivity = activities[(tableView.indexPathForSelectedRow?.row)!]
                     
-                    activityOverviewVC.activity = selectedActivityRecord
-                    activityOverviewVC.navigationItem.title = selectedActivityRecord[Cloud.RelationshipActivityAttribute.Name] as? String
+                    activityOverviewVC.activity = selectedActivity
+                    activityOverviewVC.navigationItem.title = selectedActivity.title
                 }
             default:
                 break

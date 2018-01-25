@@ -42,7 +42,7 @@ class ActivityTableViewCell: UITableViewCell {
         return formatter
     }()
     
-    var activity : RelationshipActivity?{
+    var activity : RelationshipChatActivity?{
         didSet {
             if activity != nil {
                 setupCell()
@@ -54,21 +54,22 @@ class ActivityTableViewCell: UITableViewCell {
     // MARK : - Class functions
     fileprivate func setupCell() {
         
-        activityTitle.text = activity?.activityRecord[Cloud.RelationshipActivityAttribute.Name] as? String ?? "Title"
-        descriptionBox.text = activity?.activityRecord[Cloud.RelationshipActivityAttribute.Message] as! String
+        activityTitle.text = activity?.title
+        descriptionBox.text = activity?.description
         
         func setupSystemActivity() {
             dateFormatter.dateFormat = Constants.DateFormatRepeatedActivity
             
-            daysUntil.text = "\(activity!.daysUntilActivity)"
-            date.text = dateFormatter.string(from: activity!.activityDate)
+            //TODO, implement days until text
+            daysUntil.text = "\(activity!.daysUntil)"
+            date.text = dateFormatter.string(from: activity!.creationDate)
             
             //set background image, with alpha 
-            let typeOfActivity = activity!.activityRecord[Cloud.RelationshipActivityAttribute.SystemCreated] as! String
+            if let typeOfActivity = activity?.systemActivity {
             
             let cellBackgroundImageView : UIImageView
             switch typeOfActivity {
-            case Cloud.RelationshipActivitySystemCreatedTypes.Anniversary:
+            case SystemActivity.Anniversary:
                 let anniversaryBackgroundImage = UIImage(named: "anniversarybackground")
                 cellBackgroundImageView = UIImageView(image: anniversaryBackgroundImage)
 
@@ -80,6 +81,7 @@ class ActivityTableViewCell: UITableViewCell {
             cellBackgroundImageView.contentMode = .scaleAspectFill
             cellBackgroundImageView.alpha = Constants.BackgroundImageAlpha
             backgroundView = cellBackgroundImageView
+            }
             
         }
         
@@ -87,7 +89,7 @@ class ActivityTableViewCell: UITableViewCell {
         //Setup cell for user made activities
         func setupUserMadeActivity() {
             dateFormatter.dateFormat = Constants.DefaultDateFormat
-            if let activityDays = activity?.daysUntilActivity {
+            let activityDays = activity!.daysUntil 
                 switch activityDays {
                     case 0 :
                         daysUntil.text = "Today"
@@ -96,16 +98,16 @@ class ActivityTableViewCell: UITableViewCell {
                 default :
                     daysUntil.text = "\(activityDays)"
                 }
-            }
+            
             
             backgroundView = nil
-            date.text = dateFormatter.string(from: activity!.activityDate)
+            date.text = dateFormatter.string(from: activity!.creationDate)
             
         }
         
         if activity != nil {
             
-            if activity!.activityRecord[Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+            if activity!.systemActivity != nil {
                 setupSystemActivity()
             } else {
                 setupUserMadeActivity()

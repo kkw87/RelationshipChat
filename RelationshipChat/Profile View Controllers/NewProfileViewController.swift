@@ -7,7 +7,7 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 
 class NewProfileViewController: UITableViewController, UINavigationControllerDelegate {
     
@@ -19,6 +19,11 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         
         static let FirstNameErrorText = "You need to enter your first name. "
         static let LastNameErrorText = "You need to enter your last name."
+        
+        static let EmailLoginNoTextErrorText = "You need to enter an email address"
+        static let EmailLoginInvalidText = "You need to enter a valid email address"
+        
+        static let PasswordNoTextErrorText = "You need to enter a password"
         
         static let GenderErrorText = "You need to enter your gender."
         
@@ -39,6 +44,17 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     
     //MARK: - Outlets
     
+    @IBOutlet weak var emailLoginNameTextField: UITextField! {
+        didSet {
+            emailLoginNameTextField.delegate = self
+        }
+    }
+    
+    @IBOutlet weak var passwordLoginNameTextField: UITextField! {
+        didSet {
+            passwordLoginNameTextField.delegate = self
+        }
+    }
     
     @IBOutlet fileprivate weak var pictureButton: UIButton! {
         didSet {
@@ -75,8 +91,9 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     }
     
     @IBOutlet weak var eulaAgreementSegment: UISegmentedControl!
+    
     //MARK: - Instance Variables
-    fileprivate var userImage : UIImage? {
+    private var userImage : UIImage? {
         get {
             return userImageView.image
         } set {
@@ -84,15 +101,13 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
         }
     }
     
-    fileprivate var imageURL : URL?
-    
-    fileprivate var selectedGender : String {
+    private var selectedGender : String {
         get {
             switch genderPicker.selectedSegmentIndex {
             case 0:
-                return Cloud.Gender.Male
+                return UsersGender.Male
             default:
-                return Cloud.Gender.Female
+                return UsersGender.Female
             }
         }
     }
@@ -108,8 +123,6 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     }
     
     fileprivate var loadingView = ActivityView(withMessage: "")
-    
-    var userRecord : CKRecord?
     
     //MARK: - VC Lifecycle
     
@@ -127,13 +140,11 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     @IBAction fileprivate func pickProfilePicture(_ sender: UIButton) {
         
         if UIImagePickerController.isSourceTypeAvailable(.photoLibrary) {
-            
             let picturePicker = UIImagePickerController()
             picturePicker.delegate = self
             picturePicker.sourceType = .photoLibrary
             picturePicker.allowsEditing = true
             self.present(picturePicker, animated: true, completion: nil)
-            
         }
     }
     
@@ -142,9 +153,27 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
     }
     
     @available(iOS 10.0, *)
-    @IBAction fileprivate func createNewProfile(_ sender: AnyObject) {
+    @IBAction private func createNewProfile(_ sender: AnyObject) {
         firstNameTextField.resignFirstResponder()
         lastNameTextField.resignFirstResponder()
+        
+        guard emailLoginNameTextField.hasText else {
+            emailLoginNameTextField.backgroundColor = Constants.ErrorHighlightColor
+            errorText = Constants.EmailLoginNoTextErrorText
+            return
+        }
+        
+        guard emailLoginNameTextField.text!.isValidEmailAddress() else {
+            emailLoginNameTextField.backgroundColor = Constants.ErrorHighlightColor
+            errorText = Constants.EmailLoginInvalidText
+            return
+        }
+        
+        guard passwordLoginNameTextField.hasText else {
+            passwordLoginNameTextField.backgroundColor = Constants.ErrorHighlightColor
+            errorText = Constants.PasswordNoTextErrorText
+            return
+        }
         
         guard firstNameTextField.hasText else {
             firstNameTextField.backgroundColor = Constants.ErrorHighlightColor
@@ -163,114 +192,119 @@ class NewProfileViewController: UITableViewController, UINavigationControllerDel
             return
         }
         
-        
-        guard Cloud.userIsLoggedIntoIcloud() else {
-            present(Cloud.notLoggedIntoCloudVC, animated: true, completion: nil)
-            return
-        }
-        
-        
-        let currentUser = CKRecord(recordType : Cloud.Entity.User)
-        currentUser[Cloud.UserAttribute.FirstName] = firstNameTextField.text! as CKRecordValue?
-        currentUser[Cloud.UserAttribute.LastName] = lastNameTextField.text! as CKRecordValue?
-        currentUser[Cloud.UserAttribute.Birthday] = birthdayPicker.date as CKRecordValue?
-        currentUser[Cloud.UserAttribute.Gender] = selectedGender as CKRecordValue?
-        currentUser[Cloud.RecordKeys.RecordType] = Cloud.Entity.User as CKRecordValue?
-        
-        if imageURL != nil {
-            currentUser[Cloud.UserAttribute.ProfileImage] = CKAsset(fileURL: imageURL!)
-            RCCache.shared[currentUser.recordID.recordName as AnyObject] = self.userImage
-        }
-        
         view.addSubview(loadingView)
         loadingView.updateMessageWith(message: Constants.AlertViewCreationText)
         loadingView.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
         
-        
-        Cloud.CloudDatabase.PublicDatabase.save(currentUser) {[weak self] (record, error) in
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                self?.loadingView.removeFromSuperview()
-            }
+        Auth.auth().createUser(withEmail: emailLoginNameTextField.text!, password: passwordLoginNameTextField.text!) { [weak self] (user, error) in
             
             guard error == nil else {
                 self?.displayAlertWithTitle(Constants.ProfileCreationError, withBodyMessage: error!.localizedDescription, withBlock: nil)
+                
+                DispatchQueue.main.async {
+                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    self?.loadingView.removeFromSuperview()
+                }
+                
                 return
             }
             
-            self?.setupSubscriptions(record!)
-            self?.userRecord = record
+            let newUser = RelationshipChatUser()
+            newUser.firstName = self?.firstNameTextField.text! ?? ""
+            newUser.lastName = self?.lastNameTextField.text! ?? ""
+            newUser.birthday = self?.birthdayPicker.date ?? Date()
+            newUser.gender = self?.selectedGender ?? UsersGender.Male
+            newUser.userUID = user?.uid
             
-            DispatchQueue.main.async {
-                self?.performSegue(withIdentifier: Storyboard.ProfileUnwindSegue, sender: self)
-            }
+            //This needs a completion block
+            //Add loading view
+            newUser.saveUserToDB(userImage: self?.userImage, completionBlock: {[weak self] (completed, error) in
+                
+                DispatchQueue.main.async {
+                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                    
+                    
+                    guard error == nil else {
+                        DispatchQueue.main.async {
+                            self?.displayAlertWithTitle(Constants.DefaultErrorText, withBodyMessage: error!.localizedDescription, withBlock: nil)
+                        }
+                        return
+                    }
+                    
+                    UserDefaults.standard.set(self?.emailLoginNameTextField.text!, forKey: FireBaseUserDefaults.UsersLoginName)
+                    UserDefaults.standard.set(self?.passwordLoginNameTextField.text!, forKey: FireBaseUserDefaults.UsersPassword)
+                    //Set user defaults 
+                    self?.performSegue(withIdentifier: Storyboard.ProfileUnwindSegue, sender: self)
+                }
+            })
         }
     }
     
-    
-    @available(iOS 10.0, *)
-    fileprivate func setupSubscriptions(_ usersRecord : CKRecord) {
-        let subscriptionOp = CKModifySubscriptionsOperation()
-        
-        let relationshipUpdatePredicate = NSPredicate(format: "users CONTAINS %@", usersRecord.recordID)
-        
-        let requestPredicate = NSPredicate(format: "to = %@", usersRecord.recordID)
-        
-        let responsePredicate = NSPredicate(format: "to = %@", usersRecord.recordID)
-        
-        let relationUpdateInfo = CKNotificationInfo()
-        relationUpdateInfo.shouldBadge = false
-        relationUpdateInfo.alertBody = "Relationship updated"
-        relationUpdateInfo.shouldSendContentAvailable = true
-        relationUpdateInfo.desiredKeys = [Cloud.RecordKeys.RecordType]
-        
-        let requestInfo = CKNotificationInfo()
-        requestInfo.alertBody = Cloud.Messages.RelationshipRequestMessage
-        requestInfo.shouldBadge = false
-        requestInfo.soundName = "default"
-        requestInfo.shouldSendContentAvailable = true
-        requestInfo.desiredKeys = [Cloud.RelationshipRequestAttribute.Relationship, Cloud.RecordKeys.RecordType, Cloud.RelationshipRequestAttribute.Sender]
-        
-        
-        let responseInfo = CKNotificationInfo()
-        responseInfo.alertBody = Cloud.Messages.RelationshipResponseMessage
-        responseInfo.shouldSendContentAvailable = true
-        responseInfo.soundName = "default"
-        responseInfo.desiredKeys = [Cloud.RelationshipRequestResponseAttribute.StatusUpdate, Cloud.RecordKeys.RecordType]
-        
-        let relationshipRequestSubscription = CKQuerySubscription(recordType: Cloud.Entity.RelationshipRequest, predicate: requestPredicate, options: [CKQuerySubscriptionOptions.firesOnRecordCreation])
-        
-        let relationResponseSubscription = CKQuerySubscription(recordType: Cloud.Entity.RelationshipRequestResponse, predicate: responsePredicate, options: [CKQuerySubscriptionOptions.firesOnRecordCreation])
-        
-        let relationshipUpdateSubscription = CKQuerySubscription(recordType: Cloud.Entity.Relationship, predicate: relationshipUpdatePredicate, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate, .firesOnRecordDeletion])
-        
-        
-        relationshipUpdateSubscription.notificationInfo = relationUpdateInfo
-        relationshipRequestSubscription.notificationInfo = requestInfo
-        relationResponseSubscription.notificationInfo = responseInfo
-        
-        subscriptionOp.subscriptionsToSave = [relationshipRequestSubscription, relationResponseSubscription, relationshipUpdateSubscription]
-        
-        
-        DispatchQueue.main.async {
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        }
-        
-        subscriptionOp.modifySubscriptionsCompletionBlock = { (savedSubscriptons, deletedSubscriptions, error) in
-            
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            }
-            
-            if error != nil {
-                _ = Cloud.errorHandling(error!, sendingViewController: self)
-            }
-        }
-        
-        Cloud.CloudDatabase.PublicDatabase.add(subscriptionOp)
-    }
 }
+
+//    @available(iOS 10.0, *)
+//    fileprivate func setupSubscriptions(_ usersRecord : CKRecord) {
+//        let subscriptionOp = CKModifySubscriptionsOperation()
+//
+//        let relationshipUpdatePredicate = NSPredicate(format: "users CONTAINS %@", usersRecord.recordID)
+//
+//        let requestPredicate = NSPredicate(format: "to = %@", usersRecord.recordID)
+//
+//        let responsePredicate = NSPredicate(format: "to = %@", usersRecord.recordID)
+//
+//        let relationUpdateInfo = CKNotificationInfo()
+//        relationUpdateInfo.shouldBadge = false
+//        relationUpdateInfo.alertBody = "Relationship updated"
+//        relationUpdateInfo.shouldSendContentAvailable = true
+//        relationUpdateInfo.desiredKeys = [Cloud.RecordKeys.RecordType]
+//
+//        let requestInfo = CKNotificationInfo()
+//        requestInfo.alertBody = Cloud.Messages.RelationshipRequestMessage
+//        requestInfo.shouldBadge = false
+//        requestInfo.soundName = "default"
+//        requestInfo.shouldSendContentAvailable = true
+//        requestInfo.desiredKeys = [Cloud.RelationshipRequestAttribute.Relationship, Cloud.RecordKeys.RecordType, Cloud.RelationshipRequestAttribute.Sender]
+//
+//
+//        let responseInfo = CKNotificationInfo()
+//        responseInfo.alertBody = Cloud.Messages.RelationshipResponseMessage
+//        responseInfo.shouldSendContentAvailable = true
+//        responseInfo.soundName = "default"
+//        responseInfo.desiredKeys = [Cloud.RelationshipRequestResponseAttribute.StatusUpdate, Cloud.RecordKeys.RecordType]
+//
+//        let relationshipRequestSubscription = CKQuerySubscription(recordType: Cloud.Entity.RelationshipRequest, predicate: requestPredicate, options: [CKQuerySubscriptionOptions.firesOnRecordCreation])
+//
+//        let relationResponseSubscription = CKQuerySubscription(recordType: Cloud.Entity.RelationshipRequestResponse, predicate: responsePredicate, options: [CKQuerySubscriptionOptions.firesOnRecordCreation])
+//
+//        let relationshipUpdateSubscription = CKQuerySubscription(recordType: Cloud.Entity.Relationship, predicate: relationshipUpdatePredicate, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate, .firesOnRecordDeletion])
+//
+//
+//        relationshipUpdateSubscription.notificationInfo = relationUpdateInfo
+//        relationshipRequestSubscription.notificationInfo = requestInfo
+//        relationResponseSubscription.notificationInfo = responseInfo
+//
+//        subscriptionOp.subscriptionsToSave = [relationshipRequestSubscription, relationResponseSubscription, relationshipUpdateSubscription]
+//
+//
+//        DispatchQueue.main.async {
+//            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+//        }
+//
+//        subscriptionOp.modifySubscriptionsCompletionBlock = { (savedSubscriptons, deletedSubscriptions, error) in
+//
+//            DispatchQueue.main.async {
+//                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+//            }
+//
+//            if error != nil {
+//                _ = Cloud.errorHandling(error!, sendingViewController: self)
+//            }
+//        }
+//
+//        Cloud.CloudDatabase.PublicDatabase.add(subscriptionOp)
+//    }
+//}
 
 //MARK: - ImagePickerController Delegate Methods
 
@@ -278,10 +312,15 @@ extension NewProfileViewController : UIImagePickerControllerDelegate {
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]) {
         
-        let imageInformation = picker.savePickedImageLocally(info)
+        var selectedImage : UIImage?
         
-        imageURL = imageInformation.fileURL
-        userImage = imageInformation.image
+        if let editedImage = info[UIImagePickerControllerEditedImage] as? UIImage {
+            selectedImage = editedImage
+        } else if let originalImage = info[UIImagePickerControllerOriginalImage] as? UIImage {
+            selectedImage = originalImage
+        }
+        
+        userImage = selectedImage
         self.dismiss(animated: true, completion: nil)
     }
     
@@ -299,11 +338,17 @@ extension NewProfileViewController : UITextFieldDelegate {
     
     func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
         
-        if string.onlyAlphabetical() {
-            return true
-        } else {
-            return false
+        //make sure text field is either first name or last name
+        
+        if textField == firstNameTextField || textField == lastNameTextField {
+            if string.onlyAlphabetical() {
+                return true
+            } else {
+                return false
+            }
         }
+        
+        return true
         
     }
     

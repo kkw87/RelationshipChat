@@ -7,7 +7,7 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 import MapKit
 
 @available(iOS 10.0, *)
@@ -75,7 +75,7 @@ class ActivityOverviewViewController: UITableViewController {
 
    
     //MARK : - Model
-    var activity : CKRecord? {
+    var activity : RelationshipChatActivity? {
         didSet {
             setupUI()
         }
@@ -93,29 +93,30 @@ class ActivityOverviewViewController: UITableViewController {
         }
     }
     
-    var relationshipRecord : CKRecord?
+    var currentRelationship : RelationshipChatRelationship?
+    private var secondaryUser : RelationshipChatUser?
     
     fileprivate var newActivityLocation : MKPlacemark? {
         didSet {
             if activity != nil {
-                activity![Cloud.RelationshipActivityAttribute.LocationStringName] = newActivityLocation?.name as CKRecordValue?
-                activity![Cloud.RelationshipActivityAttribute.LocationStringAddress] = MKPlacemark.parseAddress(selectedItem: newActivityLocation!) as CKRecordValue?
+                activity!.locationStringName = newActivityLocation!.name!
+                activity!.locationStringAddress = MKPlacemark.parseAddress(selectedItem: newActivityLocation!)
                 
-                let activityCLLocation = CLLocation(latitude: newActivityLocation!.coordinate.latitude, longitude: newActivityLocation!.coordinate.longitude)
+                let activityCLLocation = CLLocationCoordinate2D(latitude: newActivityLocation!.coordinate.latitude, longitude: newActivityLocation!.coordinate.longitude)
                 activityLocation = activityCLLocation
                 
-                activity![Cloud.RelationshipActivityAttribute.Location] = activityCLLocation as CKRecordValue?
+                activity!.location = activityCLLocation
             }
         }
     }
     
-    fileprivate var activityLocation : CLLocation? {
+    fileprivate var activityLocation : CLLocationCoordinate2D? {
         didSet {
             if activityLocation != nil {
                 newLocationButton?.isEnabled = true
                 setupMapView()
-                let addressStringTitle = activity![Cloud.RelationshipActivityAttribute.LocationStringName] as! String
-                let addressStringBody = activity![Cloud.RelationshipActivityAttribute.LocationStringAddress] as! String
+                let addressStringTitle = activity!.locationStringName
+                let addressStringBody = activity!.locationStringAddress
                 
                 addressNameLabel?.text = addressStringTitle
                 addressLabel?.text = addressStringBody
@@ -127,7 +128,7 @@ class ActivityOverviewViewController: UITableViewController {
     }
     
     fileprivate var calendar = Calendar.current
-    fileprivate var activityModified : CKRecord?
+    fileprivate var activityModified : RelationshipChatRelationship?
     
     //MARK: - VC Lifecycle
     override func viewDidLoad() {
@@ -149,20 +150,19 @@ class ActivityOverviewViewController: UITableViewController {
         
         if activity != nil {
 
-            if activity![Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+            if activity!.systemActivity != nil {
            
                 datePicker?.datePickerMode = .date
                 datePicker?.isEnabled = false
                 descriptionTextBox?.isEditable = false
                 saveButton?.isEnabled = false
                 newLocationButton?.isHidden = true
-                addressLabel?.text = activity![Cloud.RelationshipActivityAttribute.Message] as! String
+                addressLabel?.text = activity!.description
             }
+            activityDate = activity!.creationDate
+            descriptionTextBox?.text = activity!.description
             
-            activityDate = activity![Cloud.RelationshipActivityAttribute.CreationDate] as! Date
-            descriptionTextBox?.text = activity![Cloud.RelationshipActivityAttribute.Message] as! String
-            
-            activityLocation = activity![Cloud.RelationshipActivityAttribute.Location] as? CLLocation
+            activityLocation = activity!.location
             
         }
         
@@ -170,20 +170,20 @@ class ActivityOverviewViewController: UITableViewController {
     
     fileprivate func setupMapView() {
         let pointAnnotation = MKPointAnnotation()
-        pointAnnotation.coordinate = activityLocation!.coordinate
-        pointAnnotation.title = activity![Cloud.RelationshipActivityAttribute.LocationStringName] as? String
-        pointAnnotation.subtitle = activity![Cloud.RelationshipActivityAttribute.LocationStringAddress] as? String
+        pointAnnotation.coordinate = activityLocation!
+        pointAnnotation.title = activity!.locationStringName
+        pointAnnotation.subtitle = activity!.locationStringAddress
         
         locationMapView?.addAnnotation(pointAnnotation)
         
         let span = MKCoordinateSpanMake(0.05, 0.05)
-        let region = MKCoordinateRegionMake(activityLocation!.coordinate, span)
+        let region = MKCoordinateRegionMake(activityLocation!, span)
         locationMapView?.setRegion(region, animated: true)
         
     }
     
     @objc func getDirections() {
-        let placemark = MKPlacemark(coordinate: activityLocation!.coordinate)
+        let placemark = MKPlacemark(coordinate: activityLocation!)
         
         let mapItem = MKMapItem(placemark: placemark)
         let launchOptions = [MKLaunchOptionsDirectionsModeKey : MKLaunchOptionsDirectionsModeDriving]
@@ -195,6 +195,7 @@ class ActivityOverviewViewController: UITableViewController {
     @IBAction func cancelAction(_ sender: Any) {
         presentingViewController?.dismiss(animated: true, completion: nil)
     }
+    
     @IBAction func saveActivity(_ sender: Any) {
         
         guard !descriptionTextBox.text!.isEmpty else {
@@ -203,11 +204,11 @@ class ActivityOverviewViewController: UITableViewController {
             return
         }
         
-        activity![Cloud.RelationshipActivityAttribute.CreationDate] = datePicker.date as CKRecordValue?
-        activity![Cloud.RelationshipActivityAttribute.Message] = descriptionTextBox.text as CKRecordValue?
+        activity!.creationDate = datePicker.date
+        activity!.description = descriptionTextBox.text
         
         if activityLocation != nil {
-            activity![Cloud.RelationshipActivityAttribute.Location] = activityLocation! as CKRecordValue?
+            activity!.location = activityLocation!
         }
         
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
@@ -216,27 +217,27 @@ class ActivityOverviewViewController: UITableViewController {
         loadingView.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
         loadingView.updateMessageWith(message: Constants.SaveMessage)
         
-        Cloud.CloudDatabase.PublicDatabase.save(activity!) { [weak self] (savedRecord, error) in
+        
+        activity!.saveActivity { (error, _) in
             
             DispatchQueue.main.async {
                 UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                self?.loadingView.removeFromSuperview()
+                self.loadingView.removeFromSuperview()
+            }
+            
+            
+            guard error == nil else {
+                print(error!)
+                return
             }
 
-            if error != nil {
-                _ = Cloud.errorHandling(error!, sendingViewController: self)
-            } else {
-                if let successfullySavedRecord = savedRecord {
-                    NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : successfullySavedRecord])
-                }
-            }
         }
-        
+
     }
     
     //MARK: - TableView Delegates
     override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        if activity?[Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+        if activity?.systemActivity != nil {
             if indexPath.section == 2 {
                 return 0.0
             }
@@ -246,7 +247,7 @@ class ActivityOverviewViewController: UITableViewController {
     
     //MARK: - Tableview Datasource
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        if activity?[Cloud.RelationshipActivityAttribute.SystemCreated] != nil {
+        if activity?.systemActivity != nil {
             if section == 2 {
                 return nil
             }

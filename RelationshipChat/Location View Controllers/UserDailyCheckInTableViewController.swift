@@ -1,19 +1,20 @@
+////
+////  UserDailyCheckInTableViewController.swift
+////  RelationshipChat
+////
+////  Created by Kevin Wang on 8/25/17.
+////  Copyright © 2017 KKW. All rights reserved.
+////
 //
-//  UserDailyCheckInTableViewController.swift
-//  RelationshipChat
-//
-//  Created by Kevin Wang on 8/25/17.
-//  Copyright © 2017 KKW. All rights reserved.
-//
-
 import UIKit
 import MapKit
-import CloudKit
+import Firebase
 
 class UserDailyCheckInTableViewController: UITableViewController {
- 
+
+
     //MARK: - Model
-    fileprivate var userLocations = [String : [CKRecord]]() {
+    fileprivate var userLocations = [String : [RelationshipChatLocation]]() {
         didSet {
             DispatchQueue.main.async {
                 self.keyNames = Array(self.userLocations.keys)
@@ -27,17 +28,17 @@ class UserDailyCheckInTableViewController: UITableViewController {
             self.tableView.reloadData()
         }
     }
-    
+
     //MARK: - Constants
     private struct Storyboard {
         static let SegueIdentifier = "To Day Segue"
-        
+
     }
-    
+
     struct Constants {
         
         static let CellIdentifier = "Overview Cell"
-        
+
         static let LocationLogAlertControllerTitle = "Log your location"
         static let LocationLogAlertControllerBody = "Do you wish to log your current location?"
         static let LocationLogAlertControllerYesButton = "Yes"
@@ -60,21 +61,21 @@ class UserDailyCheckInTableViewController: UITableViewController {
         lm.requestWhenInUseAuthorization()
         return lm
     }()
-    
+
     var locationLogInProgress = false
     fileprivate let loadingView = ActivityView(withMessage: "")
     weak var presentingView : UIView?
     
     
-    
+
     //MARK: - Outlets
     @IBOutlet weak var logUserLocationButton: UIBarButtonItem!
     
     //MARK: - Model
-    var relationshipRecord : CKRecord? {
+    var currentRelationship : RelationshipChatRelationship? {
         didSet {
-            if relationshipRecord != nil {
-                fetchNewLocationsFrom(relationship: relationshipRecord!)
+            if currentRelationship != nil {
+                fetchLocations()
             }
         }
     }
@@ -83,7 +84,7 @@ class UserDailyCheckInTableViewController: UITableViewController {
     
     //MARK: - Outlet actions
     @IBAction func logUserLocation(_ sender: Any) {
-        
+
         let alertVC = UIAlertController(title: Constants.LocationLogAlertControllerTitle, message: Constants.LocationLogAlertControllerBody, preferredStyle: .alert)
         alertVC.addAction(UIAlertAction(title: Constants.LocationLogAlertControllerYesButton, style: .default, handler: { [weak self] _ in
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
@@ -92,20 +93,19 @@ class UserDailyCheckInTableViewController: UITableViewController {
         }))
         alertVC.addAction(UIAlertAction(title: Constants.LocationLogAlertControllerNoButton, style: .cancel, handler: nil))
         present(alertVC, animated: true, completion: nil)
-        
+
     }
     
     //MARK: - VC Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         hideEmptyCells()
-        addNotificationObservers()
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationController?.navigationBar.largeTitleTextAttributes = [NSAttributedStringKey.foregroundColor : UIColor.white]
     }
 
     // MARK: - Table view data source
-    
+
     override func numberOfSections(in tableView: UITableView) -> Int {
         // #warning Incomplete implementation, return the number of sections
         return 1
@@ -117,22 +117,22 @@ class UserDailyCheckInTableViewController: UITableViewController {
         return keyNames.count
     }
     
-    
+
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        
+
         let cell = tableView.dequeueReusableCell(withIdentifier: Constants.CellIdentifier, for: indexPath)
-        
+
         let dayTitleString = keyNames[indexPath.row]
-        
+
         //Need to get the amount of locations located in each day
         let locationAmount = userLocations[dayTitleString]?.count ?? 0
-        
+
         cell.textLabel?.text = dayTitleString
         cell.detailTextLabel?.text = "\(locationAmount) \(locationAmount > 1 ? "locations" : "location")"
-        
+
         return cell
     }
-    
+
     // MARK: - Navigation
     
     // In a storyboard-based application, you will often want to do a little preparation before navigation
@@ -145,7 +145,6 @@ class UserDailyCheckInTableViewController: UITableViewController {
                 }
                 locationsByDayVC.navigationItem.title = sendingCellDateTitle
                 locationsByDayVC.userLocations = userLocations[sendingCellDateTitle]
-                locationsByDayVC.dataSource = self 
             default:
                 break
             }
@@ -157,102 +156,82 @@ class UserDailyCheckInTableViewController: UITableViewController {
     }
     
     //MARK: - Class Methods
-    
-    fileprivate func addNotificationObservers() {
-        NotificationCenter.default.addObserver(forName: CloudKitNotifications.RelationshipUpdateChannel, object: nil, queue: nil) { [weak self] (notification) in
-            if let relationship = notification.userInfo?[CloudKitNotifications.RelationshipUpdateKey] as? CKRecord {
-                self?.relationshipRecord = relationship
-            }
-        }
-    }
 
-    
-    fileprivate func fetchNewLocationsFrom(relationship : CKRecord) {
-        
-        guard let updatedActivityLocations = relationshipRecord?[Cloud.RelationshipAttribute.Locations] as? [CKReference] else {
-            return
-        }
-        
-        //Setup a container to store any new locations
-        var newLocations = [CKRecordID]()
-        
-        //Setup array of locations from the passed in relationship record
-        let updatedRelationshipActivityIDs = updatedActivityLocations.map {
-            $0.recordID
-        }
-        
-        //Setup array of locations from the current locations that are being displayed
-        let currentUserLocationRecordIDs = Array(userLocations.values).joined().map {
-            $0.recordID
-        }
-        
-        //Filter out new locations
-        newLocations.append(contentsOf: updatedRelationshipActivityIDs.filter {
-            !currentUserLocationRecordIDs.contains($0)
-        })
-        
-        //Fetch new locations 
-        fetch(locations: newLocations)
-    }
-    
-    fileprivate func fetch(locations : [CKRecordID]) {
-        
-        let locationFetchOperation = CKFetchRecordsOperation(recordIDs: locations)
-        locationFetchOperation.fetchRecordsCompletionBlock = {
+    private func fetchLocations() {
+       
+        //Fetch location IDs by relationship
+        FirebaseDB.MainDatabase.child(FirebaseDB.LocationsByRelationshipFanOutKey).child(currentRelationship!.relationshipUID).observe(.childAdded) { (snapshot) in
             
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            }
-
-            if $1 != nil {
-                _ = Cloud.errorHandling($1!, sendingViewController: self)
-                print($1!._code)
-                //if the record isnt found , delete it from the relationship record and update
-            }
-            else if $0 != nil {
-                self.organizeLocations(locations: Array($0!.values))
-            }
-        }
-        
-        DispatchQueue.main.async {
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        }
-        Cloud.CloudDatabase.PublicDatabase.add(locationFetchOperation)
-    }
-    
-    
-    fileprivate func organizeLocations(locations : [CKRecord]) -> Void {
-        
-        for location in locations {
-            if let locationDate = location.creationDate {
+            let relationshipLocationID = snapshot.key
+            
+            //Fetch individual locations
+            RelationshipChatLocation.fetchLocation(withUID: relationshipLocationID, completionHandler: { [weak self](fetchedLocation) in
                 
-                let dateString = locationDate.returnDayAndDateAsString()
-                
-                if var currentDayLocations = userLocations[dateString] {
-                    if !currentDayLocations.contains(location) {
-                        currentDayLocations.append(location)
-                        userLocations[dateString] = currentDayLocations
+                //Organize and add in locations to current array
+                if let newLocation = fetchedLocation {
+                    
+                    //Get the location date as a formattesd string value to be used as a key in the location dictionary
+                    let locationDateString = newLocation.creationDate.returnDayAndDateAsString()
+                    
+                    if var locationsByDay = self?.userLocations[locationDateString] {
+                        //Now check if the value already exists
+                        locationsByDay = locationsByDay.filter {
+                            $0.uid != newLocation.uid
+                        }
+                        
+                        //Add in new location
+                        locationsByDay.append(newLocation)
+                        self?.userLocations[locationDateString] = locationsByDay
+                        
+                        
+                    } else {
+                        //Current day doesnt exist, create it and set thevalue to an array that contains the new location
+                        self?.userLocations[locationDateString] = [newLocation]
                     }
-                } else {
-                    userLocations[dateString] = [location]
+                    
+                    
                 }
-            }
+            })
+            
+            //Observe for locations being deleted
+            FirebaseDB.MainDatabase.child(FirebaseDB.LocationsByRelationshipFanOutKey).child(self.currentRelationship!.relationshipUID).observe(.childRemoved, with: { [weak self](snapshot) in
+                
+                let deletedLocationID = snapshot.key
+                
+                
+                for (stringDateKey,_) in self!.userLocations {
+                    self?.userLocations[stringDateKey] = self?.userLocations[stringDateKey]?.filter {
+                        $0.uid != deletedLocationID
+                    }
+                    
+                    if self!.userLocations[stringDateKey]!.isEmpty {
+                        self?.userLocations[stringDateKey] = nil
+                    }
+                    
+                }
+            })
+            
+            
+            
+            
         }
     }
-    
+
 }
 
 //MARK: - LocationManager Delegate
 extension UserDailyCheckInTableViewController : CLLocationManagerDelegate {
-    
+
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         loadingView.removeFromSuperview()
         print("Location did fail with error \(error)")
     }
     
+    
+    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        
         guard !locationLogInProgress, let userLoggedLocation = locations.first else {
-            
             return
         }
         presentingView!.addSubview(loadingView)
@@ -260,13 +239,13 @@ extension UserDailyCheckInTableViewController : CLLocationManagerDelegate {
         locationLogInProgress = true
         loadingView.updateMessageWith(message: Constants.SavingLocationMessage)
         loadingView.center = CGPoint(x: presentingView!.bounds.midX, y: presentingView!.bounds.midY)
-        
-        guard relationshipRecord != nil else {
+
+        guard currentRelationship != nil else {
             loadingView.removeFromSuperview()
             print("relationship error")
             return
         }
-        
+
         guard currentUserName != nil else {
             loadingView.removeFromSuperview()
             print("user name error")
@@ -278,7 +257,7 @@ extension UserDailyCheckInTableViewController : CLLocationManagerDelegate {
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
         addressNameFinder.reverseGeocodeLocation(userLoggedLocation, completionHandler: { [weak self] (foundLocations, error) in
             
-            
+
             guard error == nil else {
                 DispatchQueue.main.async {
                     self?.loadingView.removeFromSuperview()
@@ -288,112 +267,52 @@ extension UserDailyCheckInTableViewController : CLLocationManagerDelegate {
                 return
             }
             
-            
-            let newUserLocation = CKRecord(recordType: Cloud.Entity.UserLocation)
-            newUserLocation[Cloud.UserLocationAttribute.Location] = userLoggedLocation as CKRecordValue?
-            newUserLocation[Cloud.UserLocationAttribute.Relationship] = CKReference(record: self!.relationshipRecord!, action: .deleteSelf) as CKRecordValue?
-            newUserLocation[Cloud.UserLocationAttribute.UserName] = self!.currentUserName! as CKRecordValue?
-            
             if let userLocationPlacemark = foundLocations?.first {
-                let addressName = "\(userLocationPlacemark.thoroughfare ?? ""), \(userLocationPlacemark.postalCode ?? "")"
-                newUserLocation[Cloud.UserLocationAttribute.LocationStringName] = addressName as CKRecordValue?
-            }
-            
-            let locationReference = CKReference(record: newUserLocation, action: .none)
-            
-            
-            
-            if var relationshipLocations = self!.relationshipRecord![Cloud.RelationshipAttribute.Locations] as? [CKReference] {
+                            let addressName = userLocationPlacemark.name ?? ""
+                            let addressStringName = "\(userLocationPlacemark.thoroughfare ?? ""), \(userLocationPlacemark.postalCode ?? "")"
                 
-                relationshipLocations.append(locationReference)
-                self!.relationshipRecord![Cloud.RelationshipAttribute.Locations] = relationshipLocations as CKRecordValue?
-            } else {
-                //Make the array, append the new value, then set it
-                let locationReferences = [locationReference]
-                self!.relationshipRecord![Cloud.RelationshipAttribute.Locations] = locationReferences as CKRecordValue?
-            }
-            
-            DispatchQueue.main.async {
-                self?.loadingView.updateMessageWith(message: Constants.SavingRelationshipRecordsMessage)
-            }
-            
-            let saveOperation = CKModifyRecordsOperation(recordsToSave: [newUserLocation, self!.relationshipRecord!], recordIDsToDelete: nil)
-            
-            saveOperation.modifyRecordsCompletionBlock = { (savedRecords, deletedRecordIDs, error) in
-                self?.logUserLocationButton.isEnabled = true
-                self?.locationLogInProgress = false
-                DispatchQueue.main.async {
-                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                    self?.loadingView.removeFromSuperview()
-                }
+                let userLoggedLocation = RelationshipChatLocation(creatingUserName: self!.currentUserName!, location: userLoggedLocation.coordinate, locationName: addressName, locationAddressName: addressStringName, relationship: self!.currentRelationship!.relationshipUID, creationDate: Date(), uid: "")
                 
-                guard error == nil else {
-                    DispatchQueue.main.async {
-                        _ = Cloud.errorHandling(error!, sendingViewController: self)
-                        print(error!)
-                    }
-                    return
-                }
-                
-                let savedRelationshipRecord = savedRecords?.filter {$0.recordID == self?.relationshipRecord!.recordID}.first as Any
-                
-                if let savedUserLocation = (savedRecords?.filter {
-                    $0.recordID == newUserLocation.recordID
-                    })?.first {
-                    self?.organizeLocations(locations: [savedUserLocation])
+                userLoggedLocation.saveLocationToDB(completionHandler: { (error, uid) in
                     
-                }
-                
-                NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: [CloudKitNotifications.RelationshipUpdateKey : savedRelationshipRecord])
+                    DispatchQueue.main.async {
+                        UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                        self?.logUserLocationButton.isEnabled = true
+                        self?.loadingView.removeFromSuperview()
+                    }
+                    guard error == nil else {
+                        self?.displayAlertWithTitle(Constants.ErrorAlertTitle, withBodyMessage: error!.localizedDescription, withBlock: nil)
+                        return
+                    }
+                    
+                    //Send notification
+                    let secondaryRelationshipMemberID = self?.currentRelationship?.relationshipMembers.filter {
+                        $0 != Auth.auth().currentUser?.uid
+                    }.first!
+                    
+                    FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(secondaryRelationshipMemberID!).observeSingleEvent(of: .value, with: { (secondaryUserSnapshot) in
+                        let secondaryUserValues = secondaryUserSnapshot.value as! [String : Any]
+                        
+                        let secondaryUserTokenID = secondaryUserValues[RelationshipChatUserKeys.NotificationTokenID] as! String
+                        
+                        FirebaseDB.sendNotification(toTokenID: secondaryUserTokenID, titleText: "Your partner just logged a location!", bodyText: "\(self!.currentUserName!) was just at \(addressStringName)", dataDict: nil, contentAvailable: false, completionHandler: { (error) in
+                            guard error == nil else {
+                                print(error!)
+                                return
+                            }
+                        })
+                        
+                        
+                    })
+                    
+                    
+                    
+                })
                 
             }
-            
-            Cloud.CloudDatabase.PublicDatabase.add(saveOperation)
-            
         })
-        
+
     }
 }
 
-extension UserDailyCheckInTableViewController : LocationDataSource {
-    
-    func delete(location: CKRecord) {
-        //Remove the deleted location from the current locations
-        let locationValues = Array(self.userLocations.values).flatMap {
-            $0
-            }.filter {
-                $0.recordID != location.recordID
-        }
-        
-        let originalLocations = self.relationshipRecord![Cloud.RelationshipAttribute.Locations] as CKRecordValue?
-        
-        self.relationshipRecord![Cloud.RelationshipAttribute.Locations] = (self.relationshipRecord![Cloud.RelationshipAttribute.Locations] as! [CKReference]).filter {
-            $0.recordID.recordName != location.recordID.recordName
-            } as CKRecordValue?
-        
-        DispatchQueue.main.async {
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        }
-        
-        let modifyRecordsOp = CKModifyRecordsOperation(recordsToSave: [relationshipRecord!], recordIDsToDelete: [location.recordID])
-        modifyRecordsOp.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecordIDs, error) in
-            
-            DispatchQueue.main.async {
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            }
-            
-            guard error == nil else {
-                self?.relationshipRecord?[Cloud.RelationshipAttribute.Locations] = originalLocations
-                print("error deleting location")
-                return
-            }
-            
-            self?.userLocations = [:]
-            self?.organizeLocations(locations: locationValues)
-            
-        }
-        
-        Cloud.CloudDatabase.PublicDatabase.add(modifyRecordsOp)
-    }
 
-}

@@ -8,17 +8,17 @@
 
 import UIKit
 import MapKit
-import CloudKit
+import Firebase
 
 class UserDailyCheckInDetailViewController: UIViewController, MKMapViewDelegate {
     
     //MARK: - Model 
-    var locationRecord : CKRecord? {
+    var location : RelationshipChatLocation? {
         didSet {
             setupUI()
         }
     }
-
+    
     //MARK: - Outlets
     @IBOutlet weak var labelContainerView: UIView! {
         didSet {
@@ -38,10 +38,10 @@ class UserDailyCheckInDetailViewController: UIViewController, MKMapViewDelegate 
     struct Storyboard {
         static let CellIdentifier = "User Location Cell"
         static let SwipeToDeleteUnwindSegue = "ActivityByDetailDeleted"
-
+        
         static let AnnotationIdentifier = "LocationAnnotationView"
     }
-
+    
     struct Constants {
         static let SwipeToDeleteText = "Delete"
         
@@ -64,46 +64,48 @@ class UserDailyCheckInDetailViewController: UIViewController, MKMapViewDelegate 
         return dateFormatter
     }()
     
-
+    
     //MARK: - VC Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationItem.largeTitleDisplayMode = .never
         setupUI()
     }
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-
+    
     
     //MARK: - Class methods
     @objc func navigateToAnnotation(annotationView : MKAnnotation) {
         //TODO, incomplete, clicking on the arrow should send you to maps with navigation
-
+        
     }
     
     private func setupUI() {
         //Setup mapview coordinate
-        let locationCoordinate = (locationRecord![Cloud.UserLocationAttribute.Location] as! CLLocation).coordinate
-        
-        let mapRegion = MKCoordinateRegion(center: locationCoordinate, span: MKCoordinateSpan(latitudeDelta: Constants.MapSpan, longitudeDelta: Constants.MapSpan))
-        
-        mapView?.setRegion(mapRegion, animated: true)
-        
-        let annotation = MKPointAnnotation()
-        annotation.coordinate = locationCoordinate
-        
-        mapView?.addAnnotation(annotation)
-        
-        //Setup labels
-        let creationTime = locationRecord!.creationDate
-        
-        let locationName = locationRecord![Cloud.UserLocationAttribute.LocationStringName] as! String
-        
-        locationNameLabel?.text = locationName
-        locationTimeLabel?.text = dateFormatter.string(from: creationTime!)
+        if let currentRelationshipChatLocation = location {
+            let locationCoordinate = currentRelationshipChatLocation.location
+            
+            let mapRegion = MKCoordinateRegion(center: locationCoordinate, span: MKCoordinateSpan(latitudeDelta: Constants.MapSpan, longitudeDelta: Constants.MapSpan))
+            
+            mapView?.setRegion(mapRegion, animated: true)
+            
+            let annotation = MKPointAnnotation()
+            annotation.coordinate = locationCoordinate
+            
+            mapView?.addAnnotation(annotation)
+            
+            //Setup labels
+            let creationTime = currentRelationshipChatLocation.creationDate
+            
+            let locationName = currentRelationshipChatLocation.locationName
+            
+            locationNameLabel?.text = locationName
+            locationTimeLabel?.text = dateFormatter.string(from: creationTime)
+        }
     }
     
     //MARK: - Mapview Delegate
@@ -115,11 +117,11 @@ class UserDailyCheckInDetailViewController: UIViewController, MKMapViewDelegate 
                 print("error in annotation")
                 return
             }
-   
+            
             let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: mapCoordinates))
             mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey:MKLaunchOptionsDirectionsModeDefault])
             
         }))
     }
-
+    
 }

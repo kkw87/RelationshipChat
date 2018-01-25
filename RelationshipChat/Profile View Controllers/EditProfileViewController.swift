@@ -7,7 +7,7 @@
 //
 
 import UIKit
-import CloudKit
+import Firebase
 
 class EditProfileViewController: UITableViewController, UINavigationControllerDelegate {
     
@@ -26,6 +26,8 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
         
         static let ErrorLoadingProfileAlertTitle = "We couldn't load your profile"
         static let ErrorLoadingProfileAlertBody = "There was an error in loading your profile information, either it doesn't exist or there was a problem fetching it."
+        
+        static let ErrorAlertTitle = "Oops!"
     }
     
     struct Storyboard {
@@ -82,7 +84,7 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
     
     //MARK : - Model
     
-    var mainUserRecord : CKRecord? {
+    var mainUserRecord : RelationshipChatUser? {
         didSet {
             if mainUserRecord != nil {
                 setupUI()
@@ -96,9 +98,9 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
         get {
             switch genderPicker.selectedSegmentIndex {
             case 0 :
-                return Cloud.Gender.Male
+                return UsersGender.Male
             default :
-                return Cloud.Gender.Female
+                return UsersGender.Female
             }
         }
     }
@@ -139,20 +141,31 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
             })
             return
         }
-        let usersInfo = Cloud.pullUserInformationFrom(usersRecordToLoad: mainUserRecord!)
-        deleteProfileButton?.backgroundColor = UIColor.red
-        firstNameLabel?.text = usersInfo.usersFirstName
-        lastNameLabel?.text = usersInfo.usersLastName
-        usersImage = usersInfo.usersImage
-        birthdayPicker?.setDate(usersInfo.usersBirthday, animated: true)
-        originalBirthday = usersInfo.usersBirthday
         
-        let gender = usersInfo.usersGender
-        switch gender {
-        case Cloud.Gender.Male:
-            genderPicker?.selectedSegmentIndex = 0
-        default:
-            genderPicker?.selectedSegmentIndex = 1
+        deleteProfileButton?.backgroundColor = UIColor.red
+        firstNameLabel?.text = mainUserRecord?.firstName
+        lastNameLabel?.text = mainUserRecord?.lastName
+        mainUserRecord?.getUsersProfileImage() { [weak self](image, error) in
+            guard error == nil else {
+                self?.displayAlertWithTitle(Constants.ErrorLoadingProfileAlertTitle, withBodyMessage: error!.localizedDescription, withBlock: nil)
+                return
+            }
+            
+            DispatchQueue.main.async {
+                self?.usersImage = image
+                
+            }
+        }
+        birthdayPicker?.setDate(mainUserRecord!.birthday, animated: true)
+        originalBirthday = mainUserRecord!.birthday
+        
+        if let gender = mainUserRecord?.gender {
+            switch gender {
+            case UsersGender.Male:
+                genderPicker?.selectedSegmentIndex = 0
+            default:
+                genderPicker?.selectedSegmentIndex = 1
+            }
         }
     }
     
@@ -163,81 +176,37 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
         
         if mainUserRecord != nil  {
             
-            mainUserRecord![Cloud.UserAttribute.Gender] = userGender as CKRecordValue?
-            mainUserRecord![Cloud.UserAttribute.Birthday] = birthdayPicker.date as CKRecordValue?
-            mainUserRecord![Cloud.UserAttribute.FirstName] = firstNameLabel.text as CKRecordValue?
-            mainUserRecord![Cloud.UserAttribute.LastName] = lastNameLabel.text as CKRecordValue?
-            
-            //If user's birthday is different, find activity made by user and make sure it is birthday, then change that date 
-            if originalBirthday != birthdayPicker.date {
-                //Fetch activity                 
-                let recordTypePredicate = NSPredicate(format: "systemActivity = %@", Cloud.RelationshipActivitySystemCreatedTypes.Birthday)
-                let creatorPredicate = NSPredicate(format: "creatorUserRecordID = %@", mainUserRecord!.creatorUserRecordID!)
-                let searchPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [recordTypePredicate, creatorPredicate])
-                
-                let query = CKQuery(recordType: Cloud.Entity.RelationshipActivity, predicate: searchPredicate)
-                
-                UIApplication.shared.isNetworkActivityIndicatorVisible = true
-                Cloud.CloudDatabase.PublicDatabase.perform(query, inZoneWith: nil, completionHandler: {  [weak self] (fetchedRecords, error) in
-                    DispatchQueue.main.async {
-                        UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                    }
-                    
-                    guard error == nil else {
-                        _ = Cloud.errorHandling(error!, sendingViewController: self)
-                        return
-                    }
-                    
-                    guard let birthdayActivty = fetchedRecords?.first else {
-                        print("error fetching updaed user record, edit profile ")
-                        return
-                    }
-                    
-                    DispatchQueue.main.async {
-                        birthdayActivty[Cloud.RelationshipActivityAttribute.CreationDate] = self?.birthdayPicker.date as CKRecordValue?
-                    }
-                    Cloud.CloudDatabase.PublicDatabase.save(birthdayActivty, completionHandler: { (savedRecord, error) in
-                        
-                        guard error == nil else {
-                            _ = Cloud.errorHandling(error!, sendingViewController: self)
-                            return
-                        }
-                        
-                        NotificationCenter.default.post(name: CloudKitNotifications.ActivityUpdateChannel, object: nil, userInfo: [CloudKitNotifications.ActivityUpdateKey : savedRecord!])
-                        
-                    })
-                    
-                    
-                    
-                })
-                
-                
-            }
-            
-            RCCache.shared[mainUserRecord?.recordID.recordName as AnyObject] = usersImage!
-            
+            mainUserRecord?.gender = userGender
+            mainUserRecord?.birthday = birthdayPicker.date
+            mainUserRecord?.firstName = firstNameLabel.text ?? ""
+            mainUserRecord?.lastName = lastNameLabel.text ?? ""
             
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
             saveButton.isEnabled = false
-            let modifyRecordsOp = CKModifyRecordsOperation(recordsToSave: [mainUserRecord!], recordIDsToDelete: nil)
-            modifyRecordsOp.savePolicy = .changedKeys
             
-            modifyRecordsOp.modifyRecordsCompletionBlock = { [weak self] (savedRecords, deletedRecords, error) in
-                self?.saveButton.isEnabled = true
-                DispatchQueue.main.async {
-                    UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                    if error == nil {
-                        self?.displayAlertWithTitle(Constants.FinishedSavingAlertTitle, withBodyMessage: Constants.FinishedSavingAlertBody) { _ in
-                            self?.performSegue(withIdentifier: Storyboard.UnwindBackToProfileSegue, sender: self)
-                        }
-                    } else {
-                        _ = Cloud.errorHandling(error!, sendingViewController: nil)
-                    }
+            
+            mainUserRecord?.saveUserToDB(userImage: usersImage, completionBlock: { [weak self](completed, error) in
+                guard error == nil else {
+                    self?.displayAlertWithTitle(Constants.ErrorAlertTitle, withBodyMessage: error!.localizedDescription, withBlock: nil)
+                    return
                 }
-                
-            }
-            
-            Cloud.CloudDatabase.PublicDatabase.add(modifyRecordsOp)
+                if completed {
+                    
+                    //Update birthday activity
+                    FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipUserNodeKey).child(self!.mainUserRecord!.userUID!).observeSingleEvent(of: .value, with: { (snapshot) in
+                        let userValues = snapshot.value as! [String : Any]
+                        if let birthdayActivityID = userValues[RelationshipChatUserKeys.BirthdayActivityID] as? String {
+                            FirebaseDB.MainDatabase.child(FirebaseDB.RelationshipActivityNodeKey).child(birthdayActivityID).updateChildValues([ActivityKeys.ActivityDate : self!.mainUserRecord!.birthday.timeIntervalSince1970])
+                        }
+                        
+                    })
+                    
+                    self?.displayAlertWithTitle(Constants.FinishedSavingAlertTitle, withBodyMessage: Constants.FinishedSavingAlertBody) { _ in
+                        self?.performSegue(withIdentifier: Storyboard.UnwindBackToProfileSegue, sender: self)
+                    }
+                    
+                }
+            })
             
         }
     }
@@ -253,47 +222,43 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
         
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
         
+        
         alertController.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { [weak self] (alertAction) in
             
-            Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: (self?.mainUserRecord!.recordID)!, completionHandler: { (deletedRecordID, error) in
-                
+            self?.mainUserRecord?.deleteUser(completionHandler: { (error) in
                 DispatchQueue.main.async {
-                    
                     UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                    
                     self?.deleteProfileButton.isEnabled = true
                     self?.saveButton.isEnabled = true
                     self?.navigationItem.leftBarButtonItem?.isEnabled = true
-                    
-                    guard error == nil else {
-                        _ = Cloud.errorHandling(error!, sendingViewController: nil)
-                        return
-                    }
-                    
-                    if let currentRelationship = self?.mainUserRecord?[Cloud.UserAttribute.Relationship] as? CKReference {
-                        Cloud.CloudDatabase.PublicDatabase.delete(withRecordID: currentRelationship.recordID, completionHandler: { (deletedRecordID, error) in
+                }
+                
+                guard error == nil else {
+                    self?.displayAlertWithTitle(Constants.ErrorAlertTitle, withBodyMessage: error!.localizedDescription, withBlock: nil)
+                    return
+                }
+                
+                self?.displayAlertWithTitle(Constants.AccountDeletedTitle, withBodyMessage: Constants.AccountDeletedBody) { _ in
+                    self?.mainUserRecord?.deleteUser(completionHandler: { (error) in
+                        guard error == nil else {
+                            print(error!)
+                            return
+                        }
+                        
+                        DispatchQueue.main.async {
+                            self?.mainUserRecord = nil
                             
-                            guard error == nil else {
-                                _ = Cloud.errorHandling(error!, sendingViewController: self)
-                                return
-                            }
-                            
-                            NotificationCenter.default.post(name: CloudKitNotifications.RelationshipUpdateChannel, object: nil, userInfo: nil)
-                        })
-                    }
-                    
-                    self?.displayAlertWithTitle(Constants.AccountDeletedTitle, withBodyMessage: Constants.AccountDeletedBody) { _ in
-                        self?.mainUserRecord = nil
-                        self?.performSegue(withIdentifier: Storyboard.UnwindBackToProfileSegue, sender: self)
-                    }
-                    
-                    
+                            self?.performSegue(withIdentifier: Storyboard.UnwindBackToProfileSegue, sender: self)
+                        }
+                        
+                    })
+
                 }
             })
         }))
         
         alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-        
+            
         present(alertController, animated: true, completion: nil)
     }
     
@@ -324,11 +289,13 @@ class EditProfileViewController: UITableViewController, UINavigationControllerDe
 
 extension EditProfileViewController : UIImagePickerControllerDelegate {
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]) {
-        let imageInfo = picker.savePickedImageLocally(info)
-        mainUserRecord?[Cloud.UserAttribute.ProfileImage] = CKAsset(fileURL: imageInfo.fileURL!) as CKRecordValue?
-        usersImage = imageInfo.image
-        self.dismiss(animated: true, completion: nil)
         
+        if let editedPic = info[UIImagePickerControllerEditedImage] as? UIImage {
+            usersImage = editedPic
+        } else if let regularPic = info[UIImagePickerControllerOriginalImage] as? UIImage {
+            usersImage = regularPic
+        }
+        self.dismiss(animated: true, completion: nil)
     }
 }
 

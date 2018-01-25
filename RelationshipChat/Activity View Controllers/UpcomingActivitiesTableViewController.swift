@@ -21,17 +21,17 @@ class UpcomingActivitiesTableViewController: ActivityTableViewController{
     @IBOutlet weak var newActivityButton: UIBarButtonItem!
     
     // MARK: - Instance Properties
-    override var activities: [RelationshipActivity] {
+    override var activities: [RelationshipChatActivity] {
         didSet {
-            guard let relationshipStatus = dataSource?.inAValidRelationshipCheck() else {
-                return
-            }
-            
-            if relationshipStatus {
-                newActivityButton.isEnabled = true
-            } else {
-                newActivityButton.isEnabled = false
-            }
+//            guard let relationshipStatus = dataSource?.inAValidRelationshipCheck() else {
+//                return
+//            }
+//            
+//            if relationshipStatus {
+//                newActivityButton.isEnabled = true
+//            } else {
+//                newActivityButton.isEnabled = false
+//            }
         }
     }
     
@@ -44,7 +44,6 @@ class UpcomingActivitiesTableViewController: ActivityTableViewController{
             switch identifier {
             case Storyboard.NewActivitySegue :
                 if let newActivityVC = (segue.destination as? UINavigationController)?.contentViewController as? NewActivityViewController{
-                    newActivityVC.dataSource = dataSource
                 }
             default :
                 break
